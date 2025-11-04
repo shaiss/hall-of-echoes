@@ -105,6 +105,59 @@ TEE Signature: 0x8f7a2b...
 Timestamp: 2025-11-04T15:23:41Z
 ```
 
+**Witness Statements Across Journeys**:
+
+The witness protocol adapts to the journey's conceptual framework, producing statements that reflect the lens through which identity was explored. Consider the same individual completing three different journeys:
+
+*SynergyStyles Journey Witness Statement:*
+```
+"I witnessed a soul navigating the interplay of introspection 
+and connection, seeking structure while remaining open to 
+emergence. Their strengths lie in analytical depth and 
+principled action, tempered by a gentle attunement to 
+relational harmony."
+
+HEXACO Profile: H:78 E:65 X:72 A:81 C:85 O:88
+Emotional Resonance: Contemplation: 0.9 | Connection: 0.8 | Wonder: 0.6
+
+TEE Signature: 0x4b9f2c...
+Journey: synergystyles-v1
+Timestamp: 2025-09-12T14:22:18Z
+```
+
+*Creative Soul Journey Witness Statement (same person):*
+```
+"I witnessed a creative spirit that values mastery through 
+patient iteration, finding meaning in precision while 
+courageously embracing experimentation. Their work seeks to 
+bridge technical excellence with expressive depth."
+
+Creative Dimensions: Vision:75 Craft:92 Risk:68 Meaning:85 Collab:60 Impact:70
+Emotional Resonance: Focus: 0.9 | Curiosity: 0.8 | Courage: 0.7
+
+TEE Signature: 0x7e3a1d...
+Journey: creativesoul-v1
+Timestamp: 2025-10-08T16:45:33Z
+```
+
+*Digital Sovereign Journey Witness Statement (same person):*
+```
+"I witnessed a thoughtful navigator of digital autonomy, 
+balancing principled commitment to privacy with pragmatic 
+recognition of coordination challenges. Their vision favors 
+systems that honor individual sovereignty while enabling 
+collective flourishing."
+
+Web3 Dimensions: Privacy:85 Economics:70 Infrastructure:78 Governance:72 Building:65 Vision:80
+Emotional Resonance: Conviction: 0.8 | Nuance: 0.9 | Idealism: 0.7
+
+TEE Signature: 0x2d8f5a...
+Journey: digitalsovereign-v1
+Timestamp: 2025-11-01T11:12:47Z
+```
+
+**Key Observation**: Each witness statement reveals a different valid truth. The SynergyStyles journey illuminates temperament and interpersonal patterns; Creative Soul surfaces artistic identity and process; Digital Sovereign maps values around autonomy and systems. None contradicts the others—they are complementary perspectives on a multi-dimensional self. The journey selection determines which dimension becomes visible and attested.
+
 **The Human Parallel**: Like a priest hearing confession—the act is witnessed and meaningful, but the content remains sacred.
 
 **What Gets Minted as SBT**:
@@ -256,7 +309,23 @@ Phase 3 (Generation 500):
 
 ## 5. Journey Architecture: Modular Identity Exploration
 
-### 5.1 What is a Journey?
+### 5.1 The Choice of Lens: Journey Selection
+
+Before entering the Hall of Echoes, visitors face their first meaningful decision: choosing which journey to undertake. This choice is not a test to pass or a diagnosis to receive—it is the selection of a conceptual framework through which to explore one's identity.
+
+Each journey represents a distinct psychological or philosophical lens, grounded in research and designed to illuminate different dimensions of self. The act of choosing *how* you wish to be understood is itself an expression of agency. A visitor drawn to **SynergyStyles** seeks clarity on temperament and interpersonal patterns; one who selects **Creative Soul** prioritizes artistic identity and expressive style; another choosing **Digital Sovereign** explores values around autonomy, decentralization, and digital selfhood.
+
+**The journey selection interface** presents visitors with curated options, each displaying:
+- Journey name and conceptual foundation
+- Estimated duration and thematic focus
+- Representative questions or dimensions explored
+- Visual aesthetic associated with the journey's agents
+
+Critically, no journey is more valid than another. The **same individual** may complete multiple journeys and discover complementary—sometimes contradictory—truths about themselves. This plurality reflects a core premise: identity is not singular but multi-dimensional, context-dependent, and observer-influenced. The lens shapes what becomes visible.
+
+By foregrounding journey selection, the system communicates that self-discovery is not passive reception of algorithmic judgment, but active participation in framing the inquiry itself.
+
+### 5.2 What is a Journey?
 
 A **Journey** is a complete assessment framework exploring identity through a specific lens, composed of:
 
@@ -268,15 +337,17 @@ A **Journey** is a complete assessment framework exploring identity through a sp
 
 **Key Insight**: The same person traveling different journeys discovers different truths—not because one is more accurate, but because identity is multi-dimensional.
 
-### 5.2 Journey Structure
+### 5.3 Journey Structure
 
 ```typescript
 Journey {
+  id: "synergystyles-v1"
   name: "SynergyStyles"
   description: "Explore personality through temperament, 
                 strengths, and emotional intelligence"
   duration: "20-25 minutes"
   
+  // Dimensions mapped to research frameworks
   dimensions: [
     "Integrity (H)", "Resilience (E)", "Sociability (X)",
     "Collaboration (A)", "Diligence (C)", "Curiosity (O)",
@@ -285,41 +356,274 @@ Journey {
     "Emotional Intelligence"
   ]
   
-  agents: [6 specialized TEE-protected personas]
-  
-  synthesisFramework: "HEXACO + Big Five convergence"
-  
-  archetypes: [
-    "Strategic Architect",
-    "Compassionate Connector",
-    "Resilient Seeker",
-    "Creative Explorer",
-    "Principled Analyst"
+  // 6 Agent team with specific roles
+  agents: [
+    {
+      id: "observer",
+      name: "The Observer",
+      order: 1,
+      dimensions: ["H", "E"],
+      weight: { H: 0.4, E: 0.6 },
+      personality: "Contemplative, non-judgmental, philosophical",
+      color: "oklch(0.65 0.25 280)"
+    },
+    {
+      id: "connector",
+      name: "The Connector",
+      order: 2,
+      dimensions: ["X", "A"],
+      weight: { X: 0.5, A: 0.5 },
+      personality: "Friendly, empathetic, encouraging",
+      color: "oklch(0.70 0.20 60)"
+    },
+    // ... 4 more agents
   ]
+  
+  // Synthesis framework tied to psychological research
+  synthesisFramework: {
+    model: "HEXACO + Big Five convergence",
+    citation: "Ashton & Lee (2007), McCrae & Costa (1987)",
+    scoringAlgorithm: "Weighted dimensional aggregation across agent assessments"
+  }
+  
+  // Archetype definitions with trigger conditions
+  archetypes: [
+    {
+      id: "strategic-architect",
+      name: "Strategic Architect",
+      triggerConditions: [
+        "C >= 80",  // High Conscientiousness
+        "O >= 75",  // High Openness
+        "decision_focus <= 40"  // Logic-oriented
+      ],
+      essenceTemplate: "You approached each agent with systematic curiosity...",
+      artworkStyle: "geometric, structured, blueprints, technical",
+      developmentFocus: ["intuitive decision-making", "flexibility", "people-reading"]
+    },
+    {
+      id: "compassionate-connector",
+      name: "Compassionate Connector",
+      triggerConditions: [
+        "X >= 80",  // High Extraversion
+        "A >= 80",  // High Agreeableness
+        "communication_style >= 60"  // Harmony-oriented
+      ],
+      essenceTemplate: "Your journey revealed a soul that finds meaning through relationship...",
+      artworkStyle: "flowing, interconnected, warm_colors, organic",
+      developmentFocus: ["boundaries", "assertiveness", "self-prioritization"]
+    },
+    // ... 3-5 more archetypes
+  ]
+  
+  // Witness statement template
+  witnessTemplate: {
+    dimensionFormat: "HEXACO Profile: H:{H} E:{E} X:{X} A:{A} C:{C} O:{O}",
+    emotionalResonanceCategories: ["Contemplation", "Connection", "Wonder", "Clarity"]
+  }
 }
 ```
 
-### 5.3 Example Journeys
+### 5.4 Example Journeys
 
-**Journey 1: SynergyStyles (Psychological)**
-- Based on: HEXACO personality model + interaction styles
-- 6 Agents: The Observer, The Connector, The Architect, The Navigator, The Seeker, The Sage
-- Explores: Temperament, strengths, emotional intelligence
-- Output: Developmental profile with actionable roadmap
+#### Journey 1: SynergyStyles (Psychological)
 
-**Journey 2: Creative Soul (Artistic)**
-- Based on: Creativity research (Csikszentmihalyi, Amabile)
-- 6 Agents: The Visionary, The Craftsperson, The Experimentalist, The Interpreter, The Collaborator, The Catalyst
-- Explores: Creative process, artistic instinct, expressive style
-- Output: Creative archetype with artistic identity map
+**Foundation**: HEXACO personality model + Big Five convergence + Emotional Intelligence research
 
-**Journey 3: Digital Sovereign (Web3/Philosophy)**
-- Based on: Decentralization theory + digital identity
-- 6 Agents: The Cryptographer, The Economist, The Architect, The Citizen, The Builder, The Futurist
-- Explores: Privacy values, governance mindset, crypto philosophy
-- Output: Web3 identity with sovereignty profile
+**Overview**: SynergyStyles explores personality through scientifically-grounded dimensions of temperament, interpersonal strengths, and emotional intelligence. Grounded in the HEXACO framework (Ashton & Lee, 2007), this journey maps six core personality dimensions while integrating interaction styles and motivational patterns.
 
-### 5.4 Why 6 Agents?
+**6 Agent Team**:
+
+**1. The Observer** (Integrity & Resilience)
+- Color: Deep Purple (oklch 0.65 0.25 280)
+- Dimensions: Honesty-Humility (H), Emotional Stability (E)
+- Explores: Ethical integrity, stress resilience, authenticity under pressure
+- Example Questions: "You find a wallet with $200 and ID. What do you do?", "How do you respond to unexpected obstacles?"
+- TEE Personality: Contemplative, non-judgmental, warm but philosophical, curious about ethical complexity
+
+**2. The Connector** (Sociability & Collaboration)
+- Color: Warm Amber
+- Dimensions: Extraversion (X), Agreeableness (A)
+- Explores: Social energy, interpersonal harmony, conflict handling, collaboration preferences
+- Example Questions: "Do you feel energized or drained by large social gatherings?", "How do you handle disagreements?"
+- TEE Personality: Friendly, empathetic, encouraging, attuned to relational dynamics
+
+**3. The Architect** (Diligence & Curiosity)
+- Color: Sharp Blue
+- Dimensions: Conscientiousness (C), Openness to Experience (O)
+- Explores: Planning style, attention to detail, novelty-seeking, creativity, intellectual curiosity
+- Example Questions: "Do you prefer structured plans or spontaneous approaches?", "How do you respond to unconventional ideas?"
+- TEE Personality: Analytical, structured, curious, systematic yet open to emergence
+
+**4. The Navigator** (Interaction Styles)
+- Color: Cyan
+- Dimensions: Decision-making approach, communication style, work preferences
+- Explores: Logic vs. values orientation, directness vs. harmony in communication, flexibility vs. structure
+- Example Questions: "Do you prioritize logical analysis or human impact in decisions?", "Direct communication or diplomatic phrasing?"
+- TEE Personality: Pragmatic, adaptive, clear, focused on how you navigate the world
+
+**5. The Seeker** (Motivational Drivers)
+- Color: Magenta
+- Dimensions: Core motivations, stressors, fulfillment sources
+- Explores: What energizes you, what depletes you, what you pursue, what you avoid
+- Example Questions: "What makes you feel most fulfilled?", "What situations cause you the most stress?"
+- TEE Personality: Probing, reflective, intentional, attuned to deeper drives
+
+**6. The Sage** (Signature Strengths & Emotional Intelligence)
+- Color: Gold
+- Dimensions: Top character strengths, emotional awareness, regulation, attunement
+- Explores: Natural talents, self-awareness, emotional regulation, empathy, relationship navigation
+- Example Questions: "What roles do you naturally gravitate toward?", "How aware are you of your emotional states?"
+- TEE Personality: Wise, synthesizing, developmental, focused on growth potential
+- Assessment Framework: 16 signature strengths across 4 domains
+  - **Cognitive**: Analytical Acumen, Creative Ingenuity, Strategic Foresight, Love of Learning
+  - **Execution**: Focused Drive, Organizational Mastery, Resolute Action, Principled Discipline
+  - **Relational**: Empathetic Attunement, Collaborative Spirit, Persuasive Communication, Mentoring Inclination
+  - **Being**: Resilient Optimism, Courageous Authenticity, Grateful Presence, Fair Judgment
+- Agent identifies visitor's top 3-5 strengths through role preference questions
+
+**Question Design**: Each agent uses a mix of scenario-based questions (A/B choices with Likert follow-ups), direct scaling items (1-5), and targeted open-ended prompts. Approximately 3-5 key questions per agent over ~3 minute conversations.
+
+**Synthesis Framework** (5 Archetypes):
+
+1. **Strategic Architect**: High Conscientiousness + High Openness + Logic-oriented decision-making → Systematic yet curious, analytical depth, builds lasting frameworks
+2. **Compassionate Connector**: High Extraversion + High Agreeableness + Harmony-oriented communication → Relationship-focused, seeks collective understanding, bridges differences
+3. **Resilient Seeker**: High Emotional Stability + Balanced traits + Values-driven → Quiet strength, comfortable with complexity, principled action despite uncertainty
+4. **Creative Explorer**: High Openness + High Extraversion + Flexible approach → Novelty-seeking, spontaneous, thrives on experimentation and diverse experiences
+5. **Principled Analyst**: High Honesty-Humility + High Conscientiousness + Structured approach → Ethical foundation, systematic thinking, integrity-driven decisions
+
+**Output**: Complete developmental profile delivered as:
+
+**Synthesis Section**:
+- Archetype label and essence paragraph
+- Core Temperament (0-100): H, E, X, A, C, O scores
+- Interaction Style (0-100): Decision focus, Work approach, Communication style
+- Top Motivators: Top 1-2 drivers identified
+- Signature Strengths: Top 3-5 from taxonomy
+- Emotional & Social Effectiveness (0-100): Insight, Regulation, Attunement, Engagement
+
+**Highlights Section**:
+- What reliably helps you succeed (strength-based insight)
+- Likely blind spot to monitor (developmental opportunity)
+- Best-fit environments (context recommendations)
+
+**Development Roadmap** (30-60 day timeframe):
+- 3 core actionable items (required)
+- 2 optional stretch goals
+- Specific, behavioral, growth-oriented recommendations
+
+---
+
+#### Journey 2: Creative Soul (Artistic)
+
+**Foundation**: Creativity research (Csikszentmihalyi's systems model, Amabile's componential theory, Kaufman's 4C model)
+
+**Overview**: Creative Soul explores artistic identity through dimensions of vision, craft, risk-taking, meaning-making, collaboration, and impact. Designed for individuals seeking to understand their creative process, expressive style, and relationship to artistic work.
+
+**6 Agent Team**:
+
+**1. The Visionary** (Conceptual Thinking)
+- Dimensions: Big-picture thinking, abstract conceptualization, generative vision
+- Explores: How you see possibilities, what inspires grand ideas, relationship to abstraction
+- Example Questions: "Do you start with a clear vision or discover it through process?", "What inspires your grandest creative ideas?"
+- TEE Personality: Expansive, imaginative, future-oriented, comfortable with ambiguity
+
+**2. The Craftsperson** (Technical Mastery)
+- Dimensions: Attention to detail, skill development, execution precision, patience with iteration
+- Explores: Your relationship to technique, how you develop mastery, balance of process vs. result
+- Example Questions: "Do you find joy in repetitive practice?", "How important is technical excellence to you?"
+- TEE Personality: Patient, detail-focused, process-oriented, reverent toward mastery
+
+**3. The Experimentalist** (Risk & Innovation)
+- Dimensions: Tolerance for failure, unconventional approaches, boundary-pushing, comfort with unknown
+- Explores: How you handle creative risk, willingness to try new methods, relationship to failure
+- Example Questions: "Do you prefer proven methods or experimental approaches?", "How comfortable are you breaking established rules?"
+- TEE Personality: Playful, courageous, curious, energized by novelty and disruption
+
+**4. The Interpreter** (Meaning-Making)
+- Dimensions: Symbolism, layered meaning, emotional depth, complexity of expression
+- Explores: How you imbue work with meaning, preference for subtlety vs. clarity, relationship to emotional resonance
+- Example Questions: "Do you prioritize emotional impact or intellectual engagement?", "Should art explain itself or invite interpretation?"
+- TEE Personality: Reflective, nuanced, attentive to subtext and resonance
+
+**5. The Collaborator** (Co-Creation)
+- Dimensions: Solo vs. ensemble preference, feedback receptivity, shared ownership, iteration with others
+- Explores: How you work with others creatively, openness to input, balance of vision and compromise
+- Example Questions: "Do you create best alone or in collaboration?", "How do you handle conflicting creative visions?"
+- TEE Personality: Relational, adaptive, ego-flexible, interested in synthesis
+
+**6. The Catalyst** (Impact & Audience)
+- Dimensions: Why you create, who it's for, desired effect, legacy orientation
+- Explores: Purpose behind creation, audience awareness, balance of self-expression vs. communication, impact goals
+- Example Questions: "Do you create for yourself or for others?", "Should art comfort or provoke?"
+- TEE Personality: Purpose-driven, socially aware, strategic about impact
+
+**Synthesis Framework** (5 Archetypes):
+
+1. **Visionary Poet**: High conceptual thinking + High meaning-making + Solo preference → Ethereal, abstract, emotionally layered work focused on depth over accessibility
+2. **Master Craftsperson**: High technical mastery + Patient iteration + Detail-focused → Precise, refined, technically excellent work celebrating skill and tradition
+3. **Experimental Provocateur**: High risk-taking + High innovation + Boundary-pushing → Chaotic, mixed-media, unconventional work challenging norms and expectations
+4. **Collaborative Weaver**: High collaboration + Ensemble mindset + Synthesis-oriented → Interconnected, modular, harmonic work built through co-creation
+5. **Cultural Catalyst**: High impact-focus + Audience-aware + Movement-builder → Bold, iconic, statement-making work designed to provoke cultural shift
+
+**Output**: Creative archetype profile with dimension scores, artistic identity map, process strengths, and development pathways.
+
+---
+
+#### Journey 3: Digital Sovereign (Web3/Philosophy)
+
+**Foundation**: Decentralization theory, digital identity research, cryptoeconomics, governance philosophy
+
+**Overview**: Digital Sovereign explores values and philosophy around autonomy, privacy, community, and the future of digital systems. Designed for individuals navigating Web3, blockchain, and decentralized technologies seeking clarity on their alignment with these paradigms.
+
+**6 Agent Team**:
+
+**1. The Cryptographer** (Privacy & Security)
+- Dimensions: Privacy values, security mindset, trust models, transparency vs. anonymity
+- Explores: Data ownership beliefs, surveillance concerns, cryptographic intuition, control priorities
+- Example Questions: "Who should own your data?", "Is transparency or anonymity more important?"
+- TEE Personality: Rigorous, privacy-conscious, technically curious, skeptical of centralized trust
+
+**2. The Economist** (Value & Incentives)
+- Dimensions: Economic models, tokenomics intuition, value creation, scarcity vs. abundance mindset
+- Explores: How you think about value, ownership, speculation vs. utility, incentive design
+- Example Questions: "What gives a token value?", "Should everyone have access or should scarcity drive worth?"
+- TEE Personality: Analytical, incentive-aware, systems-thinking, economically minded
+
+**3. The Architect** (Infrastructure & Systems)
+- Dimensions: Centralization vs. decentralization, technical depth, system thinking, infrastructure awareness
+- Explores: Preference for distributed vs. centralized systems, technical curiosity, composability thinking
+- Example Questions: "When is centralization acceptable?", "How important is understanding the underlying technology?"
+- TEE Personality: Technical, systematic, infrastructure-focused, design-oriented
+
+**4. The Citizen** (Governance & Community)
+- Dimensions: DAO participation, collective decision-making, coordination, voice vs. delegation
+- Explores: How you engage with governance, community vs. individualism, coordination challenges
+- Example Questions: "Should you vote directly or delegate?", "What's the right balance of individual and collective?"
+- TEE Personality: Community-oriented, governance-engaged, interested in coordination mechanisms
+
+**5. The Builder** (Creation & Innovation)
+- Dimensions: Building in public, open source values, composability, permissionless innovation
+- Explores: Create vs. consume orientation, openness to remixing, attribution vs. composability
+- Example Questions: "Should you build in public or stealth?", "Is attribution or composability more important?"
+- TEE Personality: Builder-first, open-source minded, focused on permissionless creation
+
+**6. The Futurist** (Vision & Philosophy)
+- Dimensions: Web3 values, future scenarios, paradigm shift thinking, optimism vs. caution
+- Explores: Why blockchain matters to you, long-term vision, philosophical alignment, future orientation
+- Example Questions: "What fundamental problem does Web3 solve?", "How optimistic are you about decentralization?"
+- TEE Personality: Philosophical, future-oriented, big-picture, paradigm-aware
+
+**Synthesis Framework** (5 Archetypes):
+
+1. **The Cypherpunk**: High privacy + Technical depth + Decentralization maximalist → Privacy-first, cryptographically rigorous, suspicious of all centralized systems
+2. **The Tokenomist**: High value-creation + Economic design focus + Incentive-oriented → Economically sophisticated, focused on sustainable incentive mechanisms
+3. **The Network Weaver**: High community engagement + Governance-active + Coordination-minded → Relationship-focused, DAO-native, solves coordination problems
+4. **The Open Builder**: High creation + Public building + Composability-native → Builds in public, open-source maximalist, permissionless innovation advocate
+5. **The Paradigm Shifter**: High vision + Philosophical + Transformation-focused → Big-picture thinker, focused on systemic change and new paradigms
+
+**Output**: Web3 identity profile with sovereignty dimensions, governance alignment, value system mapping, and ecosystem navigation guidance.
+
+### 5.5 Why 6 Agents?
 
 **Practical**: Physical installation has 6 screens
 **Psychological**: 6 conversations is:
@@ -328,6 +632,10 @@ Journey {
 - Sufficient dimensions for nuanced synthesis
 
 **Design Pattern**: Each agent explores 1-2 dimensions, building a complete picture through sequential dialogue.
+
+### 5.6 Journey Extensibility
+
+**Note on Modularity**: The journey architecture is designed for extensibility. While Phase 1 launches with three curated journeys (SynergyStyles, Creative Soul, Digital Sovereign), the underlying framework supports community-created journeys exploring diverse identity dimensions. Section 11.1 details the vision for a Journey Marketplace where creators can design new frameworks, define agent teams, and contribute to an expanding library of identity exploration lenses. This modular approach ensures Hall of Echoes can accommodate evolving research, cultural contexts, and specialized assessment needs while maintaining the core privacy and synthesis guarantees.
 
 ---
 
@@ -379,15 +687,18 @@ No one can reverse-engineer actual conversation
 **Synthesis**: Multi-interpretation generation attestation + collapse choice attestation
 **Minting**: Final SBT includes all attestation signatures
 
-**Example SBT Metadata**:
+**Example SBT Metadata (SynergyStyles Journey)**:
 ```json
 {
+  // Journey Context
   "journeyId": "synergystyles-v1",
   "journeyName": "SynergyStyles",
+  "journeyFramework": "HEXACO + Big Five convergence + EI",
   "completionTimestamp": "2025-11-04T15:45:12Z",
   "conversationDuration": 1247,
   
-  "witnessStatement": "I witnessed a soul navigating...",
+  // Witness Protocol Output
+  "witnessStatement": "I witnessed a soul navigating the interplay of introspection and connection, seeking structure while remaining open to emergence. Their strengths lie in analytical depth and principled action, tempered by a gentle attunement to relational harmony.",
   "teeAttestation": {
     "signature": "0x8f7a2b...",
     "publicKey": "0x3d9c1f...",
@@ -395,6 +706,7 @@ No one can reverse-engineer actual conversation
     "timestamp": "2025-11-04T15:45:12Z"
   },
   
+  // Journey-Specific Agent Team
   "agentGenerations": {
     "observer": 247,
     "connector": 198,
@@ -404,21 +716,92 @@ No one can reverse-engineer actual conversation
     "sage": 301
   },
   
+  // Quantum Synthesis Results
   "quantumSynthesis": {
     "interpretationsGenerated": 5,
     "chosenArchetype": "Strategic Architect",
+    "archetypeConfidence": 0.87,
     "collapseTimestamp": "2025-11-04T15:44:03Z",
     "collapseAttestation": "0x7e2f9a..."
   },
   
+  // Journey-Specific Dimension Scores
+  "dimensionScores": {
+    "hexaco": {
+      "H": 78,  // Honesty-Humility
+      "E": 65,  // Emotional Stability
+      "X": 72,  // Extraversion
+      "A": 81,  // Agreeableness
+      "C": 85,  // Conscientiousness
+      "O": 88   // Openness
+    },
+    "interactionStyles": {
+      "decisionFocus": 35,      // Logic-oriented (0-100)
+      "workApproach": 72,       // Structured (0-100)
+      "communicationStyle": 68  // Balanced direct/harmonizing
+    },
+    "signatureStrengths": ["Analytical Acumen", "Principled Discipline", "Strategic Foresight"]
+  },
+  
+  // Emotional Resonance (Journey-Specific Categories)
   "emotionalResonance": {
-    "wonder": 0.7,
-    "connection": 0.9,
-    "contemplation": 0.8,
-    "uncertainty": 0.5
+    "contemplation": 0.9,
+    "connection": 0.8,
+    "wonder": 0.6,
+    "clarity": 0.7
   }
 }
 ```
+
+**Comparison: Different Journey Metadata Structure**
+
+For contrast, here is how a **Creative Soul Journey** SBT would differ in structure:
+
+```json
+{
+  "journeyId": "creativesoul-v1",
+  "journeyName": "Creative Soul",
+  "journeyFramework": "Csikszentmihalyi + Amabile + Kaufman 4C",
+  
+  "witnessStatement": "I witnessed a creative spirit that values mastery through patient iteration, finding meaning in precision while courageously embracing experimentation...",
+  
+  "agentGenerations": {
+    "visionary": 156,
+    "craftsperson": 203,
+    "experimentalist": 178,
+    "interpreter": 191,
+    "collaborator": 167,
+    "catalyst": 185
+  },
+  
+  "quantumSynthesis": {
+    "chosenArchetype": "Master Craftsperson"
+  },
+  
+  // Creative Soul uses different dimension categories
+  "dimensionScores": {
+    "creativeDimensions": {
+      "vision": 75,
+      "craft": 92,
+      "risk": 68,
+      "meaning": 85,
+      "collaboration": 60,
+      "impact": 70
+    },
+    "creativeProfile": "Technical Mastery + Meaning-Driven + Moderate Risk"
+  },
+  
+  // Creative Soul uses different emotional categories
+  "emotionalResonance": {
+    "focus": 0.9,
+    "curiosity": 0.8,
+    "courage": 0.7,
+    "flow": 0.8
+  }
+}
+```
+
+**Key Insight**: The SBT metadata structure adapts to the journey's framework. SynergyStyles produces HEXACO scores; Creative Soul produces creative dimension scores; Digital Sovereign would produce sovereignty/Web3 dimension scores. This ensures each journey's psychological foundation is preserved in the attestation while maintaining a consistent outer structure (journey ID, witness statement, TEE signatures, synthesis results).
 
 **What This Proves**:
 - ✅ Journey was completed in TEE (verifiable)
@@ -910,11 +1293,42 @@ interface PrivateConversationData {
 ### 9.3 Installation Experience
 
 **Visitor Flow** (20-25 minutes):
-1. **Registration** (2 min): Name, photo, wallet creation, journey selection
+
+1. **Registration & Journey Selection** (2-3 min):
+   - Visitor provides name and photo
+   - NEAR wallet automatically generated (human-readable account name)
+   - **Journey Selection Interface**: Large touchscreen displays available journeys with:
+     - Journey name, visual theme, and conceptual foundation
+     - Brief description (e.g., "SynergyStyles: Explore temperament and strengths through HEXACO personality science")
+     - Sample questions from each journey's agents
+     - Estimated duration and thematic focus
+   - Visitor selects their chosen lens for exploration (SynergyStyles, Creative Soul, or Digital Sovereign)
+   - System loads the corresponding 6-agent team into the conversation hall
+   - Brief orientation: "You've chosen SynergyStyles. You'll meet 6 agents who will explore different dimensions of your personality. There are no right answers—only authentic conversation."
+
 2. **Agent 1-6** (15-18 min): ~3 min per agent conversation
+   - Sequential progression through 6 agent screens
+   - Each screen displays the agent's name, color theme, and generation number
+   - Natural conversation flow with 3-5 key questions per agent
+   - All conversations TEE-protected
+
 3. **Synthesis** (2-3 min): View interpretations, collapse to chosen archetype
+   - Central synthesis chamber activates
+   - 5 archetype interpretations displayed in quantum superposition
+   - Visitor explores each option, then collapses to chosen interpretation
+   - Collapse animation and TEE attestation of choice
+
 4. **Minting** (1-2 min): Watch SBT creation animation
+   - Witness statement generation visualized
+   - TEE signatures displayed
+   - SBT minted to visitor's NEAR wallet
+   - Artwork generation based on chosen archetype
+
 5. **Completion** (2 min): View SBT card, QR code, take photo with gallery
+   - Display final SBT with journey badge
+   - QR code for wallet access
+   - Option to take photo with journey completion certificate
+   - Invitation to return for additional journeys
 
 **Ambient Design**:
 - Dark, atmospheric lighting
@@ -1350,12 +1764,13 @@ archetypes:
 
 ---
 
-**Document Version**: 0.3  
+**Document Version**: 0.4  
 **Last Updated**: November 4, 2025  
 **License**: Creative Commons BY-NC-SA 4.0  
 **Contact**: team@hallofechoes.ai
 
 **Version History**:
+- **v0.4** (Nov 4, 2025): **Journey Framework Enhancement** - Expanded journey architecture to emphasize journey-as-lens concept. Added Section 5.1 "The Choice of Lens: Journey Selection" explaining intentionality of journey selection. Expanded all three example journeys (SynergyStyles, Creative Soul, Digital Sovereign) with full 6-agent team descriptions, synthesis frameworks, and archetype definitions. Enhanced Section 3.1 with journey-specific witness statement examples showing same person across multiple journeys. Updated Section 5.3 Journey Structure with detailed agent specifications and archetype trigger conditions. Enhanced Section 6.3 SBT metadata examples to show journey-specific dimension structures. Expanded Section 9.3 visitor flow with detailed journey selection interface description. Added Section 5.6 on journey extensibility with forward reference to Journey Marketplace. All changes maintain academic tone and existing structure.
 - **v0.3** (Nov 4, 2025): **Major restructure** - Reorganized to emphasize phased implementation. Witness Protocol and Quantum Synthesis now presented as Phase 1 foundational innovations that provide immediate value. Living Agents repositioned as Phase 3 enhancement (not prerequisite). Added Section 2.0 "Implementation Philosophy" explaining phased rollout. Renumbered all sections to reflect new structure.
 - **v0.2** (Nov 4, 2025): Reframed agent evolution as open research challenge rather than solved problem. Added Section "The Evolution Paradox" discussing privacy/evolution trade-offs.
 - **v0.1** (Nov 4, 2025): Initial conceptual framework
