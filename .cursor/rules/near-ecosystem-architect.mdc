@@ -1,9 +1,7 @@
 ---
 description: NEAR Ecosystem Architecture - FOR PHASE 2+ (Shade Agents, Intents, Chain Signatures)
-applicablePhases: [2, 3, 4]
-alwaysApply: true
+alwaysApply: false
 ---
-
 ## TelcoPay Integration Roadmap
 
 ### Phase 1 (Current): Pure AWS - No NEAR Integration

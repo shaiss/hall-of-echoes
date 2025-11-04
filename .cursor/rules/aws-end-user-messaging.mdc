@@ -1,8 +1,7 @@
 ---
-alwaysApply: true
 description: AWS End User Messaging (SMS) service patterns - replaces deprecated Pinpoint
+alwaysApply: false
 ---
-
 # AWS End User Messaging Service
 
 ## Critical Context
