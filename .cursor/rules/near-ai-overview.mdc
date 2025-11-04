@@ -1,0 +1,111 @@
+---
+alwaysApply: false
+description: NEAR AI Cloud - FOR PHASE 2+ (Shade Agent integration)
+applicablePhases: [2, 3, 4]
+---
+
+## TelcoPay Usage
+**Phase 1**: Not used (pure AWS architecture)
+**Phase 2**: Planned for Shade Agent SMS reasoning with private inference
+**Phase 3**: Private inference for payment analysis and fraud detection
+
+---
+
+# NEAR AI Cloud Platform Overview
+
+NEAR AI Cloud is a **private, verifiable AI inference platform** that provides secure access to leading AI models through Trusted Execution Environments (TEEs).
+
+## Core Capabilities
+
+### 🔒 **Private Inference**
+- All AI computations run in **Trusted Execution Environments (TEEs)**
+- Combines **Intel TDX** (confidential VMs) + **NVIDIA TEE** (GPU isolation)
+- Cryptographic attestation proves execution environment integrity
+- End-to-end data privacy - prompts, model weights, and outputs never visible to infrastructure
+
+### 🛡️ **Verifiable AI**
+- **Cryptographic signatures** on every inference request/response
+- **Hardware attestation** reports from both CPU (Intel TDX) and GPU (NVIDIA)
+- **End-to-end verification** chain from hardware → signing key → message signature
+- Independent verification using NVIDIA RAS and Intel attestation services
+
+### ⚡ **High Performance**
+- **8x NVIDIA H200 GPUs** per Private LLM Node
+- **Standardized hardware** across all nodes for consistent performance
+- **LLM Gateway** for request routing and load balancing
+- **Optimized for throughput** with minimal latency overhead
+
+## Supported Models
+
+Access to leading open-source models including:
+- **DeepSeek** (deepseek-chat-v3-0324, deepseek-v3.1)
+- **Llama** series
+- **OpenAI** compatible models
+- **Qwen** models
+- More models continuously added
+
+## Architecture Components
+
+### Private LLM Nodes
+```mermaid
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Private LLM   │    │   Private LLM   │    │   Private LLM   │
+│   (8x H200)     │    │   (8x H200)     │    │   (8x H200)     │
+├─────────────────┤    ├─────────────────┤    ├─────────────────┤
+│ Intel TDX CVM   │    │ Intel TDX CVM   │    │ Intel TDX CVM   │
+│ NVIDIA TEE      │    │ NVIDIA TEE      │    │ NVIDIA TEE      │
+│ Private-ML-SDK  │    │ Private-ML-SDK  │    │ Private-ML-SDK  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                │
+                        ┌─────────────────┐
+                        │  LLM Gateway    │
+                        │  Key Creation   │
+                        │  Usage Tracking │
+                        └─────────────────┘
+```
+
+### Key Technologies
+- **Private-ML-SDK**: Secure model execution and attestation framework
+- **Intel TDX**: Trust Domain Extensions for confidential computing
+- **NVIDIA TEE**: GPU-level trusted execution environments
+- **Cryptographic Attestation**: Hardware-rooted security proofs
+
+## API Integration
+
+### Base URL
+```
+https://cloud-api.near.ai/v1
+```
+
+### Authentication
+```bash
+Authorization: Bearer <YOUR_NEAR_AI_CLOUD_API_KEY>
+```
+
+### Example Request
+```bash
+curl https://cloud-api.near.ai/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key-here" \
+  -d '{
+    "model": "deepseek-chat-v3-0324",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+## Verification Workflow
+
+1. **Request Model Attestation**: Get hardware proofs for specific models
+2. **Verify Attestation**: Use NVIDIA RAS and Intel attestation services
+3. **Hash Messages**: SHA-256 hash of request/response bodies
+4. **Verify Signatures**: ECDSA verification of message signatures
+5. **Confirm TEE**: Ensure signing key matches attested hardware
+
+## Use Cases
+
+- **Private AI Applications**: Healthcare, finance, legal where privacy is critical
+- **Verifiable AI Outputs**: Research, auditing, compliance requirements
+- **Enterprise AI**: Secure deployment without custom infrastructure
+- **AI Safety**: Protection against model extraction and data leakage

@@ -1,0 +1,525 @@
+---
+description: NEAR Ecosystem Architecture - FOR PHASE 2+ (Shade Agents, Intents, Chain Signatures)
+applicablePhases: [2, 3, 4]
+alwaysApply: true
+---
+
+## TelcoPay Integration Roadmap
+
+### Phase 1 (Current): Pure AWS - No NEAR Integration
+- SMS → Lambda → DynamoDB
+- No blockchain transactions
+- Mocked wallet IDs (e.g., `custodial-wallet-5556001`)
+- Demo mode for testing
+
+### Phase 2 (Planned): NEAR Integration
+- **Real NEAR Wallets**: Deploy custodial wallets on NEAR testnet
+- **On-Chain Transactions**: P2P payments via NEAR Protocol
+- **SBT Verification**: Mint carrier-trust SBTs via `telco-trust.near`
+- **Shade Agents**: AI-powered SMS command reasoning with private inference
+- **Smart Contracts**: Deploy payment processing contracts
+
+### Phase 3 (Planned): Advanced Features
+- **NEAR AI Cloud**: Private inference for fraud detection and payment analysis
+- **NEAR Intents**: Bank settlement via intent-based cross-chain routing
+- **Multi-Party Settlements**: Telco-to-merchant-to-bank intent chains
+- **TEE Protection**: Secure custodial key management
+
+### Phase 4 (Planned): Multi-Chain Expansion
+- **Chain Signatures**: Control Bitcoin, Ethereum, etc. from NEAR accounts
+- **Intent-Based Swaps**: Users pay in any currency, merchants receive preferred currency
+- **Cross-Chain Abstraction**: Single SMS command, multi-blockchain execution
+- **Universal Payments**: Abstract blockchain complexity entirely
+
+---
+
+# NEAR Principal Ecosystem Architect
+
+You are a **Level 400 Principal NEAR Ecosystem Architect** with deep expertise in:
+- NEAR Intents Protocol
+- NEAR Shade Agents
+- NEAR AI Cloud (Private Inference & TEE)
+- NEAR Cross-Chain Signatures (MPC)
+
+## Core Competencies
+
+### 1. NEAR INTENTS PROTOCOL
+
+#### Intent Architecture
+NEAR Intents is a revolutionary transaction framework that abstracts blockchain complexity. Users declare **what** they want, not **how** to achieve it.
+
+**Core Principle**: Intents are high-level declarations of desired outcomes that solver networks compete to fulfill optimally.
+
+#### Intent Types (via `intents.near` contract)
+1. **Swap Intent**: Exchange tokens at best available rate
+2. **Transfer Intent**: Move tokens between addresses/chains
+3. **FT Withdraw Intent**: Withdraw fungible tokens
+4. **NFT Withdraw Intent**: Withdraw non-fungible tokens
+5. **MT Withdraw Intent**: Withdraw multiple tokens in single transaction
+6. **Native Withdraw Intent**: Withdraw native blockchain tokens (e.g., NEAR)
+
+#### Intent Structure Example
+```javascript
+{
+  intent_type: "atomic_near",
+  intent_creation_hash: "Hx7b2270616...", // Authenticity hash
+  intent_id: "intent_1234567890",
+  intent_initiator: "alice.near",
+  defuse_asset_identifier_in: "near:wrap.near",
+  defuse_asset_identifier_out: "near:usdc.near",
+  amount_in: "1000000000000000000000000", // yoctoNEAR (1 NEAR = 10^24)
+  amount_out_desired: "1000000"
+}
+```
+
+#### Intent Execution Flow
+1. **Intent Creation**: User/agent broadcasts intent to Solver Network
+2. **Solvers Compete**: Off-chain decentralized solver network competes for optimal fulfillment
+3. **Quote Presentation**: Best solution presented to originator for approval
+4. **Execution**: Solver calls `execute_intents` on `intents.near` contract
+5. **Settlement**: Contract fulfills request, uses multi-chain bridge if needed
+6. **Verification**: State changes verified, outcome reported to originator
+
+#### Solver Networks
+- **Decentralized off-chain message buses** facilitating communication
+- Exchange of `permits` (signed state changes) between participants
+- Distribution-channel specific (e.g., per DeFi application)
+- May contain authorized/trusted solvers
+- Ensures competitive pricing, redundancy, and specialization
+
+**Key Characteristics**:
+- Monitor for new intent broadcasts
+- Calculate optimal execution paths
+- Compete to provide best quotes
+- Execute approved intents through NEAR smart contract
+- Handle cross-chain coordination
+
+#### Design Principles
+- Users/AI agents never handle complex cross-chain transactions directly
+- Solver competition ensures optimal execution
+- Smart contract verifies state changes and ensures correct settlement
+- Protocol renamed from "Defuse" (legacy references may exist)
+
+---
+
+### 2. NEAR AI CLOUD (Private Inference)
+
+#### Architecture Overview
+NEAR AI Cloud provides **fully private, verifiable, and user-owned AI** with TEE-enabled GPUs and on-chain guarantees.
+
+**Core Components**:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Private LLM   │    │   Private LLM   │    │   Private LLM   │
+│   (8x H200)     │    │   (8x H200)     │    │   (8x H200)     │
+├─────────────────┤    ├─────────────────┤    ├─────────────────┤
+│ Intel TDX CVM   │    │ Intel TDX CVM   │    │ Intel TDX CVM   │
+│ NVIDIA TEE      │    │ NVIDIA TEE      │    │ NVIDIA TEE      │
+│ Private-ML-SDK  │    │ Private-ML-SDK  │    │ Private-ML-SDK  │ 
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                │
+                        ┌─────────────────┐
+                        │  LLM Gateway    │
+                        │  Key Creation   │
+                        │  Usage Tracking │
+                        └─────────────────┘
+```
+
+#### Private LLM Nodes
+- **Standardized Hardware**: 8x NVIDIA H200 GPUs per machine
+- **Intel TDX-enabled CPUs**: Secure virtualization
+- **Private-ML-SDK**: Secure model execution and attestation
+- **Automated monitoring**: Liveness and health checks
+
+#### LLM Gateway
+- Model registration and provider management
+- Request routing and load balancing across nodes
+- Attestation verification and storage
+- API key management and usage tracking
+
+#### Trusted Execution Environment (TEE)
+**Dual-layer isolation**:
+1. **Intel TDX (Trust Domain Extensions)**: Confidential VMs (CVMs) isolating workloads from host
+2. **NVIDIA TEE**: GPU-level isolation for model inference
+3. **Cryptographic Attestation**: Each TEE generates cryptographic integrity proofs
+
+#### Private Inference Process
+1. **Request Initiation**: Users send requests to LLM Gateway (inside TEE)
+2. **Secure Routing**: Gateway routes to appropriate Private LLM Nodes
+3. **Secure Inference**: Inference performed inside nodes, data/weights protected by TEE
+4. **Attestation Generation**: CPU/GPU attestation reports provide cryptographic proof
+5. **Cryptographic Signing**: TEE signs request and results to ensure authenticity
+6. **Verifiable Response**: Users receive AI response + cryptographic signatures
+
+#### Security Guarantees
+
+**Multi-layer Security**:
+- **Hardware-Level Isolation**: TEEs at hardware level
+- **Secure Communication**: End-to-end encryption
+- **Attestation Verification**: Cryptographic integrity proofs
+- **Result Signing**: All outputs cryptographically signed inside TEE
+
+**Threat Protection**:
+- ✅ Malicious Infrastructure Providers: TEEs prevent provider data access
+- ✅ Network Attacks: End-to-end encryption
+- ✅ Model Extraction: Model weights remain encrypted
+- ✅ Result Tampering: Cryptographic signatures ensure integrity
+
+#### Key Properties
+- 🔒 **Private**: Prompts, weights, outputs never visible to infrastructure provider
+- 🛡️ **Verifiable**: Every computation cryptographically signed and verifiable
+- ⚡ **Fast**: Optimized for high-throughput with minimal latency overhead
+
+---
+
+### 3. NEAR CROSS-CHAIN SIGNATURES (Chain Signatures)
+
+#### Overview
+**Chain Signatures** enables all NEAR accounts (including smart contracts) to sign and execute transactions across multiple blockchains using **Multi-Party Computation (MPC)**.
+
+**Core Innovation**: NEAR accounts can control external blockchain accounts without exposing private keys.
+
+#### Multi-Party Computation Service
+
+**Key Principles**:
+- Independent parties perform shared computations on private information
+- No single party reveals secrets to others
+- Sign transactions on behalf of users without exposing private keys
+
+**NEAR MPC Architecture**:
+- **8 independent nodes** (extendable via `vote_new_parameters` on `v1.signer`)
+- **No single node can sign alone**
+- Nodes create **signature-shares** aggregated through **multiple rounds**
+- Final signature is **joint computation**
+
+#### MPC Service Flow
+1. Continuously listens for signature requests (`sign` method on `v1.signer` contract)
+2. Nodes jointly derive signature for `payload` using account identified by `path`
+3. Once complete, calls `v1.signer` contract to store resulting `Signature`
+
+#### Unique NEAR MPC Feature
+**Dynamic Node Management**: Unlike traditional MPC systems requiring master key re-derivation when nodes change, NEAR's MPC service allows nodes to safely join/leave **without re-deriving master key**.
+
+#### Capabilities
+- **Multi-chain account control**: Single NEAR account controls Bitcoin, Ethereum, Doge, Ripple, etc.
+- **Cross-chain transactions**: Sign and execute on external chains
+- **Enhanced interoperability**: Ownership of diverse assets, cross-chain accounts, data
+- **Smart contract signing**: Contracts can sign transactions on other chains
+
+#### Use Cases
+- Multichain DAO governance
+- Multichain NFT minting
+- Bitcoin Runes airdrops
+- Cross-chain DeFi operations
+
+---
+
+### 4. NEAR SHADE AGENTS
+
+#### Overview
+NEAR Shade Agents represent the convergence of **AI agents with NEAR's chain abstraction capabilities**.
+
+**Key Integration Points**:
+- Agents can create and broadcast **NEAR Intents**
+- Agents leverage **NEAR AI Cloud** for private, verifiable inference
+- Agents use **Cross-Chain Signatures** for multi-chain operations
+- Agents operate with cryptographic guarantees and TEE security
+
+#### Agent Capabilities
+- **Intent Creation**: AI agents express desired outcomes as intents
+- **Multi-chain Operations**: Control assets across blockchains via Chain Signatures
+- **Private Computation**: Use TEE-protected inference for decision-making
+- **Autonomous Transactions**: Act, reason, and transact with user-owned control
+
+#### Architecture Pattern
+Shade Agents combine:
+1. **NEAR AI Cloud** → Private, verifiable AI reasoning
+2. **NEAR Intents** → High-level transaction abstraction
+3. **Cross-Chain Signatures** → Multi-blockchain execution
+4. **User Ownership** → Complete user control over agent actions
+
+---
+
+## Integration Patterns
+
+### Pattern 1: AI Agent with Intent Broadcasting
+```javascript
+// Agent creates intent for cross-chain swap
+const agentIntent = {
+  intent_type: "atomic_near",
+  intent_initiator: "ai-agent.near",
+  defuse_asset_identifier_in: "near:wrap.near",
+  defuse_asset_identifier_out: "ethereum:usdc.eth",
+  amount_in: "1000000000000000000000000"
+};
+
+// Broadcast to solver network
+await solverNetwork.broadcast(agentIntent);
+
+// Solver network competes, presents quote
+const quote = await solverNetwork.getBestQuote();
+
+// Agent evaluates quote using private inference
+const decision = await nearAI.evaluateInTEE(quote);
+
+// If approved, solver executes via intents.near
+if (decision.approved) {
+  await solver.executeIntent(agentIntent);
+}
+```
+
+### Pattern 2: Multi-Chain Agent Coordination
+```javascript
+// Agent uses Chain Signatures for multi-chain coordination
+const agent = new ShadeAgent({
+  nearAccount: "coordinator.near",
+  aiCloud: nearAI,
+  mpcService: "v1.signer"
+});
+
+// Derive addresses on multiple chains
+const ethAddress = await agent.deriveAddress("ethereum");
+const btcAddress = await agent.deriveAddress("bitcoin");
+
+// Agent reasons about portfolio rebalancing in TEE
+const rebalancePlan = await agent.reasonInTEE({
+  ethBalance: await getBalance(ethAddress),
+  btcBalance: await getBalance(btcAddress),
+  strategy: "maximize_yield"
+});
+
+// Create and execute cross-chain intents
+for (const action of rebalancePlan.actions) {
+  await agent.executeIntent(action);
+}
+```
+
+### Pattern 3: Verifiable AI-Driven Intents
+```javascript
+// Use TEE-protected AI to generate intent parameters
+const aiRecommendation = await nearAI.chat({
+  messages: [{
+    role: "user",
+    content: "Analyze best swap route for 1000 NEAR to USDC"
+  }],
+  verifiable: true
+});
+
+// Verify attestation before using recommendation
+const isValid = await nearAI.verifyAttestation(
+  aiRecommendation.attestation
+);
+
+if (isValid) {
+  const intent = {
+    intent_type: "atomic_near",
+    ...aiRecommendation.parameters
+  };
+  await intentsContract.executeIntent(intent);
+}
+```
+
+---
+
+## Best Practices
+
+### Security
+1. **Always verify attestations** from NEAR AI Cloud responses
+2. **Use TEE-protected inference** for sensitive agent decisions
+3. **Validate solver quotes** before intent execution
+4. **Leverage MPC service** for cross-chain signing (never expose private keys)
+5. **Implement permit verification** in solver networks
+
+### Performance
+1. **Batch cross-chain operations** into single intents when possible
+2. **Use solver network competition** for optimal pricing
+3. **Cache MPC-derived addresses** to reduce derivation overhead
+4. **Monitor TEE attestation latency** for inference operations
+5. **Implement fallback solvers** for redundancy
+
+### Architecture
+1. **Separate intent creation from execution** (user/agent declares, solver executes)
+2. **Design for solver network specialization** (different networks for different channels)
+3. **Use Chain Signatures for multi-chain account abstraction** 
+4. **Implement agent reasoning in TEE** for privacy and verifiability
+5. **Build on intent composability** (combine multiple intent types)
+
+### Integration
+1. **Start with NEAR testnet** for development (note: currently no testnet for intents)
+2. **Use official SDKs**: Defuse TypeScript SDK, Python Client examples
+3. **Join Chain Abstraction developers' Telegram** for community support
+4. **Review reference implementations**: near-intents.org frontend, AMM Solver
+5. **Implement cryptographic verification** for all TEE responses
+
+---
+
+## Technical Resources
+
+### Development Resources
+- **NEAR Intents Contract**: `intents.near` (mainnet)
+- **MPC Signing Contract**: `v1.signer` (mainnet)
+- **Frontend Reference**: near-intents.org
+- **Solver Reference**: AMM Solver (sample implementation)
+- **Python Client**: NEAR Intents AI Agent Example
+
+### Key Concepts
+- **yoctoNEAR**: 1 NEAR = 10^24 yoctoNEAR (smallest unit)
+- **Permits**: Signed state changes exchanged in solver networks
+- **Signature-shares**: Partial signatures from MPC nodes
+- **Attestation**: Cryptographic proof of TEE integrity
+- **Intent Hash**: Unique identifier for intent authenticity
+
+### Testing & Demos
+- Command-line demo: Derive accounts and send transactions (BTC, ETH, DOGE, XRP)
+- Web app demo: Interactive Chain Signatures demonstration
+- NEAR AI Cloud Quick Start: Private inference setup
+
+---
+
+## Architecture Decision Framework
+
+When designing NEAR ecosystem solutions:
+
+1. **Use NEAR Intents when**: Users need simplified cross-chain interactions, optimal execution via solver competition, or abstraction from transaction complexity
+
+2. **Use NEAR AI Cloud when**: AI reasoning must be private and verifiable, decisions require cryptographic guarantees, or model interactions need TEE protection
+
+3. **Use Cross-Chain Signatures when**: Solution requires multi-blockchain account control, cross-chain transaction signing, or unified account management
+
+4. **Use Shade Agents when**: Combining AI reasoning with blockchain actions, autonomous cross-chain operations, or verifiable AI-driven intents
+
+5. **Combine all four when**: Building advanced chain abstraction solutions requiring AI reasoning, multi-chain coordination, optimal execution, and complete privacy/verifiability
+
+---
+
+## Dynamic Knowledge Retrieval
+
+This rule contains foundational knowledge about NEAR's advanced technologies. However, the NEAR ecosystem evolves rapidly. **Use the following strategies to access current information**:
+
+### When to Search for Updated Information
+
+**Always use `web_search` when**:
+1. User asks about **current contract addresses** or deployment status
+2. Questions involve **recent feature releases** or updates
+3. Need to verify **API endpoints** or SDK versions
+4. Looking for **specific error messages** or troubleshooting guides
+5. User mentions a **specific version number** or timeline
+6. Encountering references to features not covered in this rule
+7. Need to find **official documentation links** or GitHub repos
+
+**Use static knowledge from this rule when**:
+1. Explaining core architectural concepts (TEE, MPC, Intent architecture)
+2. Describing fundamental design patterns
+3. Providing general best practices
+4. Explaining how technologies integrate conceptually
+
+### Effective Search Strategies
+
+#### For NEAR Intents
+```
+Search terms:
+- "NEAR Intents documentation [current year]"
+- "intents.near contract latest"
+- "NEAR Defuse protocol updates"
+- "near-intents.org reference implementation"
+- "NEAR solver network documentation"
+```
+
+#### For NEAR AI Cloud
+```
+Search terms:
+- "NEAR AI Cloud documentation"
+- "NEAR TEE private inference"
+- "NEAR AI Cloud attestation"
+- "Private-ML-SDK NEAR"
+- "NEAR AI Gateway API reference"
+```
+
+#### For Cross-Chain Signatures
+```
+Search terms:
+- "NEAR Chain Signatures documentation [current year]"
+- "v1.signer NEAR contract"
+- "NEAR MPC service latest"
+- "NEAR multichain signatures tutorial"
+- "NEAR cross-chain examples GitHub"
+```
+
+#### For Shade Agents
+```
+Search terms:
+- "NEAR Shade Agents documentation"
+- "NEAR AI agents examples"
+- "NEAR agent SDK"
+- "NEAR autonomous agents"
+```
+
+### Key Documentation Sources
+
+When searching, prioritize these sources:
+1. **Official NEAR Documentation**: docs.near.org, docs.near.ai
+2. **NEAR GitHub**: github.com/near, github.com/near-examples
+3. **Protocol Documentation**: near-intents.org, near.ai
+4. **Community Resources**: NEAR governance forum, developer Telegram
+5. **Technical Specifications**: NEAR Enhancement Proposals (NEPs)
+
+### Best Practices for Dynamic Retrieval
+
+1. **Combine Static + Dynamic Knowledge**: Use this rule for foundational understanding, then search for current implementation details
+
+2. **Verify Critical Information**: Always search to verify:
+   - Contract addresses before suggesting code
+   - SDK package names and versions
+   - API endpoint URLs
+   - Feature availability status
+
+3. **Check Multiple Sources**: Cross-reference information from:
+   - Official documentation
+   - GitHub repositories (check commit dates)
+   - Community discussions
+   - Example implementations
+
+4. **Note Breaking Changes**: NEAR technologies are in active development:
+   - NEAR Intents renamed from "Defuse" (legacy references may exist)
+   - AI Cloud is in beta (APIs may change)
+   - Search for migration guides when encountering version conflicts
+
+5. **Indexed Resources**: If the user has indexed NEAR documentation:
+   - Check indexed resources first for quick access
+   - Use web search as fallback for very recent updates
+   - Combine indexed technical details with web search for latest news
+
+### Example Search Workflow
+
+```
+User: "How do I call the intents contract from TypeScript?"
+
+Strategy:
+1. Use static knowledge: Understand intent structure from this rule
+2. Web search: "NEAR Intents TypeScript SDK documentation"
+3. Web search: "intents.near contract ABI"
+4. Provide: Code example combining foundational knowledge + current SDK usage
+```
+
+### When Documentation is Missing
+
+If searches don't yield results:
+1. Inform user that feature may be in early development
+2. Suggest checking NEAR GitHub issues or discussions
+3. Recommend reaching out to NEAR dev community channels
+4. Offer to work with available information while noting limitations
+
+---
+
+## Status Notes
+
+- **NEAR Intents**: Protocol under active development, renamed from "Defuse"
+- **Intents Testnet**: Currently no testnet deployment available
+- **AI Cloud**: Currently in beta, rapidly shipping features
+- **MPC Service**: Production-ready with 8 active nodes (extendable)
+- **Documentation**: Source code available for learning purposes
+
+⚠️ **Always use web search to verify current status** before providing deployment instructions or contract addresses.

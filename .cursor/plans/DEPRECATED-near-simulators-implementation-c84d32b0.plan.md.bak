@@ -1,0 +1,941 @@
+<!-- c84d32b0-bcf1-47d1-9533-a8e33f19abdf 64ead59b-5f55-419d-a804-d8b25db875a7 -->
+# NEAR Simulators - Implementation Plan (Final)
+
+## Architecture: User-Owned Shade Agents
+
+### User Requirements
+
+1. Each user gets their own agent (user-owned)
+2. Each user can verify THEIR agent's code
+3. Uses NEAR sub-account model with permissions
+4. Future: Separate TEE deployment per user
+5. Future: Shared distributed memory layer
+
+### Implementation Strategy: Hybrid Approach
+
+**Phase 1 (Localnet/Initial)**:
+
+- ONE service manages MULTIPLE user agent contexts
+- Each user gets NEAR sub-account: `{phone}.telcopay-agent.test.near`
+- Isolated execution contexts enforced by service
+- Per-user attestation (context-specific)
+
+**Future (Production)**:
+
+- Split into separate TEE deployments per user
+- Same code, different deployment topology
+- Add distributed memory layer for shared state
+
+## Phase 1: NEAR Intents Simulator (1Click API)
+
+### 1.1 Create Package Structure
+
+Create `lambdas/shared/near-simulators/` directory:
+
+```
+lambdas/shared/near-simulators/
+├── package.json
+├── README.md
+├── tsconfig.json
+├── src/
+│   ├── index.ts
+│   ├── intents/
+│   │   ├── types.ts
+│   │   ├── simulator.ts
+│   │   └── production.ts
+│   ├── shade-agent/
+│   │   ├── types.ts
+│   │   ├── simulator.ts
+│   │   ├── user-context.ts
+│   │   └── production.ts
+│   ├── factory.ts
+│   └── config.ts
+```
+
+### 1.2 Implement 1Click API Types
+
+**File: `lambdas/shared/near-simulators/src/intents/types.ts`**
+
+Match production 1Click API (https://1click.chaindefuser.com/):
+
+```typescript
+export type SwapType = 'EXACT_INPUT' | 'EXACT_OUTPUT' | 'ANY_INPUT';
+export type SwapStatus = 'PENDING_DEPOSIT' | 'PROCESSING' | 'SUCCESS' | 
+                         'INCOMPLETE_DEPOSIT' | 'REFUNDED' | 'FAILED';
+
+export interface QuoteRequest {
+  dry?: boolean;
+  swapType: SwapType;
+  slippageTolerance?: number;
+  originAsset: string;  // e.g., "nep141:wrap.near"
+  destinationAsset: string;
+  amount: string;
+  refundTo: string;
+  recipient: string;
+  deadline?: string;
+}
+
+export interface QuoteResponse {
+  timestamp: string;
+  quoteRequest: QuoteRequest;
+  quote: {
+    depositAddress: string;
+    amountIn: string;
+    amountOut: string;
+    amountOutFormatted: string;
+    deadline: string;
+    timeEstimate: number;
+  };
+}
+
+export interface SwapStatusResponse {
+  quoteResponse: QuoteResponse;
+  status: SwapStatus;
+  updatedAt: string;
+  swapDetails?: {
+    nearTxHashes?: string[];
+    amountIn: string;
+    amountOut: string;
+  };
+}
+
+export interface TokenInfo {
+  assetId: string;
+  decimals: number;
+  blockchain: string;
+  symbol: string;
+  price: string;
+  contractAddress?: string;
+}
+
+export interface IOneClickClient {
+  requestQuote(request: QuoteRequest): Promise<QuoteResponse>;
+  submitDepositTx(depositAddress: string, txHash: string): Promise<void>;
+  getSwapStatus(depositAddress: string): Promise<SwapStatusResponse>;
+  getSupportedTokens(): Promise<TokenInfo[]>;
+}
+```
+
+### 1.3 Implement 1Click Simulator
+
+**File: `lambdas/shared/near-simulators/src/intents/simulator.ts`**
+
+```typescript
+export class OneClickSimulator implements IOneClickClient {
+  private nearWalletManager: NearWalletManager;
+  private swaps: Map<string, SwapStatusResponse> = new Map();
+  
+  constructor(nearWalletManager: NearWalletManager) {
+    this.nearWalletManager = nearWalletManager;
+  }
+  
+  async requestQuote(request: QuoteRequest): Promise<QuoteResponse> {
+    const depositAddress = this.generateDepositAddress();
+    
+    return {
+      timestamp: new Date().toISOString(),
+      quoteRequest: request,
+      quote: {
+        depositAddress,
+        amountIn: request.amount,
+        amountOut: this.calculateOutput(request),
+        amountOutFormatted: formatNearAmount(this.calculateOutput(request)),
+        deadline: new Date(Date.now() + 600000).toISOString(),
+        timeEstimate: 120  // 2 minutes
+      }
+    };
+  }
+  
+  async submitDepositTx(depositAddress: string, txHash: string): Promise<void> {
+    console.log(`📥 [1CLICK SIMULATOR] Deposit received: ${txHash}`);
+  }
+  
+  async getSwapStatus(depositAddress: string): Promise<SwapStatusResponse> {
+    return this.swaps.get(depositAddress) || this.createPendingStatus(depositAddress);
+  }
+  
+  async getSupportedTokens(): Promise<TokenInfo[]> {
+    return [
+      {
+        assetId: 'nep141:wrap.near',
+        decimals: 24,
+        blockchain: 'near',
+        symbol: 'wNEAR',
+        price: '2.79',
+        contractAddress: 'wrap.near'
+      }
+    ];
+  }
+  
+  private generateDepositAddress(): string {
+    return 'deposit-' + Math.random().toString(36).substring(7);
+  }
+  
+  private calculateOutput(request: QuoteRequest): string {
+    const inputAmount = parseFloat(request.amount);
+    const outputAmount = inputAmount * 0.98;  // 2% spread
+    return Math.floor(outputAmount).toString();
+  }
+  
+  private createPendingStatus(depositAddress: string): SwapStatusResponse {
+    return {
+      quoteResponse: {} as QuoteResponse,
+      status: 'PENDING_DEPOSIT',
+      updatedAt: new Date().toISOString()
+    };
+  }
+}
+```
+
+### 1.4-1.6 Production Stub, Config, Factory
+
+Same pattern as before - create production stub, config management, and factory.
+
+## Phase 2: User-Owned Shade Agent Simulator
+
+### 2.1 Implement User Agent Context Types
+
+**File: `lambdas/shared/near-simulators/src/shade-agent/types.ts`**
+
+```typescript
+export type KeyType = 'Ecdsa' | 'Eddsa';
+
+export interface SignatureRequest {
+  payload: string | number[];
+  path?: string;
+  keyType: KeyType;
+}
+
+export interface SignatureResponse {
+  signature: {
+    big_r: string;
+    s: string;
+  };
+  publicKey: string;
+}
+
+export interface AgentInfo {
+  accountId: string;
+  publicKey: string;
+  balance: string;
+  allowance: string;
+}
+
+export interface DerivedAddress {
+  address: string;
+  publicKey: string;
+  path: string;
+}
+
+// Per-user agent context
+export interface UserAgentContext {
+  phoneNumber: string;
+  agentAccountId: string;  // {phone}.telcopay-agent.test.near
+  derivationPath: string;  // Unique per user
+  state: Map<string, any>;  // Isolated state
+  createdAt: number;
+  attestationContext: string;  // For per-user attestation
+}
+
+// Shade Agent SDK interface (matches shade-agent-js)
+export interface IShadeAgentSDK {
+  getAgentAccountId(): Promise<string>;
+  getAgentInfo(): Promise<AgentInfo>;
+  requestSignature(request: SignatureRequest): Promise<SignatureResponse>;
+  deriveAddress(chain: string, path?: string): Promise<DerivedAddress>;
+  agentCall(contractId: string, method: string, args: any): Promise<any>;
+  agentView(contractId: string, method: string, args: any): Promise<any>;
+}
+
+// Multi-user agent manager interface
+export interface IUserAgentManager {
+  createUserAgent(phoneNumber: string): Promise<UserAgentContext>;
+  getUserAgent(phoneNumber: string): Promise<UserAgentContext | null>;
+  getAgentSDK(phoneNumber: string): Promise<IShadeAgentSDK>;
+  getUserAttestation(phoneNumber: string): Promise<AgentAttestation>;
+}
+
+export interface AgentAttestation {
+  userPhone: string;
+  agentAccountId: string;
+  codeHash: string;
+  contextHash: string;  // Hash of user's isolated context
+  timestamp: number;
+  verified: boolean;
+  teeReport?: string;  // Only in production TEE
+}
+```
+
+### 2.2 Implement Per-User Agent Context
+
+**File: `lambdas/shared/near-simulators/src/shade-agent/user-context.ts`**
+
+```typescript
+import { createHash } from 'crypto';
+
+/**
+ * Manages isolated contexts for user-owned agents
+ * Each user gets their own context with NEAR sub-account
+ */
+export class UserAgentContextManager {
+  private contexts: Map<string, UserAgentContext> = new Map();
+  private nearWalletManager: NearWalletManager;
+  private masterAgentAccountId: string;
+  
+  constructor(masterAgentAccountId: string, nearWalletManager: NearWalletManager) {
+    this.masterAgentAccountId = masterAgentAccountId;
+    this.nearWalletManager = nearWalletManager;
+  }
+  
+  /**
+   * Create user's agent context with NEAR sub-account
+   * Example: +14255556001 → 14255556001.telcopay-agent.test.near
+   */
+  async createUserContext(phoneNumber: string): Promise<UserAgentContext> {
+    if (this.contexts.has(phoneNumber)) {
+      return this.contexts.get(phoneNumber)!;
+    }
+    
+    const cleanPhone = phoneNumber.replace(/\+/g, '');
+    const agentAccountId = `${cleanPhone}.${this.masterAgentAccountId}`;
+    
+    // Create NEAR sub-account
+    await this.nearWalletManager.createSubAccount(
+      this.masterAgentAccountId,
+      agentAccountId,
+      parseNearAmount('10')  // Fund with 10 NEAR
+    );
+    
+    const context: UserAgentContext = {
+      phoneNumber,
+      agentAccountId,
+      derivationPath: `m/44'/397'/0'/${cleanPhone}`,
+      state: new Map(),
+      createdAt: Date.now(),
+      attestationContext: this.generateContextHash(phoneNumber)
+    };
+    
+    this.contexts.set(phoneNumber, context);
+    
+    console.log(`🤖 [USER AGENT] Created agent for ${phoneNumber}`);
+    console.log(`   Account: ${agentAccountId}`);
+    console.log(`   Context: ${context.attestationContext}`);
+    
+    return context;
+  }
+  
+  async getUserContext(phoneNumber: string): Promise<UserAgentContext | null> {
+    return this.contexts.get(phoneNumber) || null;
+  }
+  
+  async generateAttestation(phoneNumber: string): Promise<AgentAttestation> {
+    const context = await this.getUserContext(phoneNumber);
+    if (!context) {
+      throw new Error(`No agent context for ${phoneNumber}`);
+    }
+    
+    const codeHash = this.generateCodeHash();
+    const contextHash = context.attestationContext;
+    
+    return {
+      userPhone: phoneNumber,
+      agentAccountId: context.agentAccountId,
+      codeHash,
+      contextHash,
+      timestamp: Date.now(),
+      verified: true,  // In simulator
+      // teeReport would be added in production TEE
+    };
+  }
+  
+  private generateContextHash(phoneNumber: string): string {
+    return createHash('sha256')
+      .update('user-context')
+      .update(phoneNumber)
+      .update(Date.now().toString())
+      .digest('hex');
+  }
+  
+  private generateCodeHash(): string {
+    // In production: TEE generates this from actual code
+    // In simulator: static hash representing code version
+    return createHash('sha256')
+      .update('shade-agent-simulator-v1.0.0')
+      .digest('hex');
+  }
+}
+```
+
+### 2.3 Implement Shade Agent SDK Simulator
+
+**File: `lambdas/shared/near-simulators/src/shade-agent/simulator.ts`**
+
+```typescript
+/**
+ * Shade Agent SDK Simulator
+ * Simulates shade-agent-js library for a specific user's agent context
+ */
+export class ShadeAgentSDKSimulator implements IShadeAgentSDK {
+  private userContext: UserAgentContext;
+  private nearWalletManager: NearWalletManager;
+  
+  constructor(userContext: UserAgentContext, nearWalletManager: NearWalletManager) {
+    this.userContext = userContext;
+    this.nearWalletManager = nearWalletManager;
+  }
+  
+  async getAgentAccountId(): Promise<string> {
+    return this.userContext.agentAccountId;
+  }
+  
+  async getAgentInfo(): Promise<AgentInfo> {
+    const balance = await this.nearWalletManager.getBalance(
+      this.userContext.agentAccountId
+    );
+    
+    return {
+      accountId: this.userContext.agentAccountId,
+      publicKey: 'ed25519:...',  // From wallet manager
+      balance: parseNearAmount(balance.toString()),
+      allowance: '300000000000000'
+    };
+  }
+  
+  async requestSignature(request: SignatureRequest): Promise<SignatureResponse> {
+    // Simulate Chain Signatures using user's derivation path
+    const { payload, keyType } = request;
+    const path = request.path || this.userContext.derivationPath;
+    
+    const signature = await this.simulateChainSignature(payload, path, keyType);
+    
+    console.log(`✍️ [AGENT SDK] Signature for ${this.userContext.phoneNumber}`);
+    console.log(`   Path: ${path}`);
+    console.log(`   KeyType: ${keyType}`);
+    
+    return {
+      signature: {
+        big_r: signature.r,
+        s: signature.s
+      },
+      publicKey: signature.publicKey
+    };
+  }
+  
+  async deriveAddress(chain: string, path?: string): Promise<DerivedAddress> {
+    const derivationPath = path || this.userContext.derivationPath;
+    const derivedKey = this.simulateDeriveKey(chain, derivationPath);
+    const address = this.formatAddressForChain(chain, derivedKey);
+    
+    return {
+      address,
+      publicKey: derivedKey,
+      path: derivationPath
+    };
+  }
+  
+  async agentCall(contractId: string, method: string, args: any): Promise<any> {
+    const account = await this.nearWalletManager.getAccount(
+      this.userContext.agentAccountId
+    );
+    return await account.functionCall({
+      contractId,
+      methodName: method,
+      args,
+      gas: '300000000000000'
+    });
+  }
+  
+  async agentView(contractId: string, method: string, args: any): Promise<any> {
+    const account = await this.nearWalletManager.getAccount(
+      this.userContext.agentAccountId
+    );
+    return await account.viewFunction({
+      contractId,
+      methodName: method,
+      args
+    });
+  }
+  
+  // Simulation helpers
+  private async simulateChainSignature(
+    payload: string | number[],
+    path: string,
+    keyType: KeyType
+  ) {
+    const hash = typeof payload === 'string' 
+      ? payload 
+      : Buffer.from(payload).toString('hex');
+    
+    if (keyType === 'Ecdsa') {
+      return this.simulateEcdsaSignature(hash, path);
+    } else {
+      return this.simulateEddsaSignature(hash, path);
+    }
+  }
+  
+  private simulateEcdsaSignature(hash: string, path: string) {
+    return {
+      r: '0x' + createHash('sha256')
+        .update(hash)
+        .update(path)
+        .update('r')
+        .digest('hex'),
+      s: '0x' + createHash('sha256')
+        .update(hash)
+        .update(path)
+        .update('s')
+        .digest('hex'),
+      publicKey: '0x04' + createHash('sha256')
+        .update(this.userContext.agentAccountId)
+        .digest('hex')
+    };
+  }
+  
+  private simulateEddsaSignature(hash: string, path: string) {
+    return {
+      r: createHash('sha256')
+        .update(hash)
+        .update(path)
+        .update('r')
+        .digest('hex'),
+      s: createHash('sha256')
+        .update(hash)
+        .update(path)
+        .update('s')
+        .digest('hex'),
+      publicKey: 'ed25519:' + createHash('sha256')
+        .update(this.userContext.agentAccountId)
+        .digest('hex')
+    };
+  }
+  
+  private simulateDeriveKey(chain: string, path: string): string {
+    return createHash('sha256')
+      .update(this.userContext.agentAccountId)
+      .update(chain)
+      .update(path)
+      .digest('hex');
+  }
+  
+  private formatAddressForChain(chain: string, pubkey: string): string {
+    switch (chain.toLowerCase()) {
+      case 'ethereum':
+      case 'sepolia':
+        return '0x' + pubkey.slice(-40);
+      case 'bitcoin':
+        return 'bc1q' + pubkey.slice(-40);
+      case 'near':
+        return this.userContext.agentAccountId;
+      default:
+        return pubkey;
+    }
+  }
+}
+```
+
+### 2.4 Implement User Agent Manager
+
+**File: `lambdas/shared/near-simulators/src/shade-agent/manager.ts`**
+
+```typescript
+/**
+ * User Agent Manager
+ * Creates and manages per-user Shade Agent contexts
+ */
+export class UserAgentManager implements IUserAgentManager {
+  private contextManager: UserAgentContextManager;
+  private nearWalletManager: NearWalletManager;
+  private sdkCache: Map<string, IShadeAgentSDK> = new Map();
+  
+  constructor(masterAgentAccountId: string, nearWalletManager: NearWalletManager) {
+    this.contextManager = new UserAgentContextManager(
+      masterAgentAccountId,
+      nearWalletManager
+    );
+    this.nearWalletManager = nearWalletManager;
+  }
+  
+  async createUserAgent(phoneNumber: string): Promise<UserAgentContext> {
+    return await this.contextManager.createUserContext(phoneNumber);
+  }
+  
+  async getUserAgent(phoneNumber: string): Promise<UserAgentContext | null> {
+    return await this.contextManager.getUserContext(phoneNumber);
+  }
+  
+  async getAgentSDK(phoneNumber: string): Promise<IShadeAgentSDK> {
+    // Check cache
+    if (this.sdkCache.has(phoneNumber)) {
+      return this.sdkCache.get(phoneNumber)!;
+    }
+    
+    // Get or create context
+    let context = await this.getUserAgent(phoneNumber);
+    if (!context) {
+      context = await this.createUserAgent(phoneNumber);
+    }
+    
+    // Create SDK for this user's context
+    const sdk = new ShadeAgentSDKSimulator(context, this.nearWalletManager);
+    this.sdkCache.set(phoneNumber, sdk);
+    
+    return sdk;
+  }
+  
+  async getUserAttestation(phoneNumber: string): Promise<AgentAttestation> {
+    return await this.contextManager.generateAttestation(phoneNumber);
+  }
+}
+```
+
+### 2.5 Update Signup Handler
+
+**File: `lambdas/sms-handler/handlers/signup.ts`**
+
+Add agent creation during signup:
+
+```typescript
+export async function handleSignup(phoneNumber: string) {
+  // ... existing user creation ...
+  
+  // NEW: Create user's Shade Agent
+  const userAgentManager = getUserAgentManager();  // From factory
+  const agentContext = await userAgentManager.createUserAgent(phoneNumber);
+  
+  // Get attestation for verification
+  const attestation = await userAgentManager.getUserAttestation(phoneNumber);
+  
+  // Update user record with agent info
+  await updateUser({
+    ...user,
+    agent_account_id: agentContext.agentAccountId,
+    agent_created: true,
+    agent_attestation: attestation.codeHash
+  });
+  
+  // Send success message with agent info
+  await sendSMS(
+    phoneNumber,
+    `Welcome to TelcoPay! Your wallet and agent have been created.\n` +
+    `Wallet: ${user.near_account_id}\n` +
+    `Agent: ${agentContext.agentAccountId}\n` +
+    `Balance: 100 NEAR`
+  );
+}
+```
+
+### 2.6 Create Shade Agent Service
+
+**File: `lambdas/shared/shade-agent-service.ts`**
+
+Service that uses per-user agents:
+
+```typescript
+export class ShadeAgentService {
+  private userAgentManager: IUserAgentManager;
+  private intentsClient: IOneClickClient;
+  
+  constructor(
+    userAgentManager: IUserAgentManager,
+    intentsClient: IOneClickClient
+  ) {
+    this.userAgentManager = userAgentManager;
+    this.intentsClient = intentsClient;
+  }
+  
+  /**
+   * Process payment using user's own agent
+   */
+  async processPayment(
+    phoneNumber: string,
+    smsCommand: string
+  ): Promise<PaymentResult> {
+    console.log(`🤖 [SHADE AGENT SERVICE] Processing for ${phoneNumber}`);
+    
+    // Get THIS user's agent SDK
+    const userAgentSDK = await this.userAgentManager.getAgentSDK(phoneNumber);
+    const agentAccountId = await userAgentSDK.getAgentAccountId();
+    
+    console.log(`   Using agent: ${agentAccountId}`);
+    
+    // Parse intent with AI
+    const nearAI = await getNearAIClient();
+    const command = await parseLLMCommand(smsCommand, nearAI);
+    
+    // Build payment intent
+    const intent = await this.buildPaymentIntent(phoneNumber, command);
+    
+    // Request quote
+    const quote = await this.intentsClient.requestQuote(intent);
+    
+    // Execute transfer using USER'S agent to sign
+    const txHash = await this.executeWithUserAgent(
+      userAgentSDK,
+      phoneNumber,
+      quote
+    );
+    
+    // Get user's attestation
+    const attestation = await this.userAgentManager.getUserAttestation(phoneNumber);
+    
+    return {
+      success: true,
+      txHash,
+      attestation: attestation.contextHash,
+      agentAccountId
+    };
+  }
+  
+  private async executeWithUserAgent(
+    userAgentSDK: IShadeAgentSDK,
+    phoneNumber: string,
+    quote: QuoteResponse
+  ): Promise<string> {
+    // Build transaction payload
+    const payload = this.buildTransferPayload(quote);
+    
+    // Sign with USER'S agent (not shared agent)
+    const signature = await userAgentSDK.requestSignature({
+      payload,
+      keyType: 'Eddsa'
+    });
+    
+    console.log(`✍️ Signed by user's agent: ${await userAgentSDK.getAgentAccountId()}`);
+    
+    // Broadcast transaction
+    return await this.broadcastTransaction(payload, signature);
+  }
+  
+  // ... helper methods ...
+}
+
+interface PaymentResult {
+  success: boolean;
+  txHash?: string;
+  attestation: string;
+  agentAccountId: string;
+}
+```
+
+### 2.7 Update Lambda Handler
+
+**File: `lambdas/sms-handler/index.ts`**
+
+```typescript
+import { NearSimulatorFactory, getNearConfig } from '../shared/near-simulators';
+import { ShadeAgentService } from '../shared/shade-agent-service';
+
+const factory = new NearSimulatorFactory(getNearConfig());
+const nearWalletManager = new NearWalletManager();
+
+// Create user agent manager (manages per-user contexts)
+const userAgentManager = factory.createUserAgentManager(
+  'telcopay-agent.test.near',
+  nearWalletManager
+);
+
+const intentsClient = factory.createIntentsClient(nearWalletManager);
+
+// Create service with user agent manager
+const shadeAgentService = new ShadeAgentService(
+  userAgentManager,
+  intentsClient
+);
+
+export const handler: SNSHandler = async (event: SNSEvent) => {
+  // ... parsing ...
+  
+  switch (command.type) {
+    case 'SIGNUP':
+      await handleSignup(phoneNumber);  // Creates user + agent
+      break;
+    
+    case 'P2P_PAY':
+    case 'MERCHANT_PAY':
+      // User's own agent processes payment
+      const result = await shadeAgentService.processPayment(phoneNumber, smsBody);
+      
+      await sendSMS(
+        phoneNumber,
+        `Payment completed!\n` +
+        `Agent: ${result.agentAccountId}\n` +
+        `TX: ${result.txHash}`
+      );
+      break;
+  }
+};
+```
+
+### 2.8 Update Factory
+
+**File: `lambdas/shared/near-simulators/src/factory.ts`**
+
+```typescript
+export class NearSimulatorFactory {
+  constructor(private config: NearSimulatorConfig) {}
+  
+  createIntentsClient(nearWalletManager: NearWalletManager): IOneClickClient {
+    if (this.config.environment === 'localnet') {
+      return new OneClickSimulator(nearWalletManager);
+    } else {
+      return new ProductionOneClickClient();
+    }
+  }
+  
+  createUserAgentManager(
+    masterAgentAccountId: string,
+    nearWalletManager: NearWalletManager
+  ): IUserAgentManager {
+    if (this.config.environment === 'localnet') {
+      return new UserAgentManager(masterAgentAccountId, nearWalletManager);
+    } else {
+      throw new Error('Production requires separate TEE deployments per user');
+    }
+  }
+}
+```
+
+### 2.9 Update DynamoDB Types
+
+**File: `lambdas/shared/types.ts`**
+
+Add agent fields to User:
+
+```typescript
+export interface User {
+  // ... existing fields ...
+  
+  // Shade Agent fields
+  agent_account_id?: string;  // e.g., "14255556001.telcopay-agent.test.near"
+  agent_created?: boolean;
+  agent_attestation?: string;  // Code hash from attestation
+}
+```
+
+### 2.10 Update Demo Viewer
+
+**File: `cli/src/event-parser.ts`**
+
+Parse agent execution events:
+
+```typescript
+function parseAgentExecution(event: DemoEvent) {
+  return {
+    type: 'AGENT_EXECUTION',
+    userPhone: event.data.phone,
+    agentAccountId: event.data.agent_account_id,
+    attestation: event.data.attestation,
+    txHash: event.data.tx_hash,
+    timestamp: event.timestamp
+  };
+}
+```
+
+**File: `cli/src/demo-display.ts`**
+
+Display with agent info:
+
+```
+┌─────────────────────────────────────────────────┐
+│ 🤖 AGENT EXECUTION [2s ago]                    │
+│                                                  │
+│ User: +14255556001                              │
+│ Agent: 14255556001.telcopay-agent.test.near    │
+│ Attestation: a1b2c3d4...                        │
+│ TX: 0x123abc...                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### 2.11 Create Test Scripts
+
+**File: `scripts/test-shade-agent-simulator.sh`**
+
+Test user-owned agents:
+
+```bash
+#!/bin/bash
+
+echo "Testing Per-User Shade Agents..."
+
+# Test 1: Create two user agents
+./send-test-msg.sh --command SIGNUP --originator +14255556001
+./send-test-msg.sh --command SIGNUP --originator +14255556002
+
+# Verify separate sub-accounts created
+aws dynamodb get-item --table-name telco-users \
+  --key '{"phone_number":{"S":"+14255556001"}}' \
+  --query 'Item.agent_account_id.S'
+# Should show: 14255556001.telcopay-agent.test.near
+
+# Test 2: Payment with user's agent
+./send-test-msg.sh --command "PAY 10 +14255556002" --originator +14255556001
+
+# Test 3: Verify attestations are different per user
+echo "Checking attestations..."
+# Each user should have unique attestation hash
+```
+
+## Phase 3: Package & Documentation
+
+Same as before - extract as npm package with comprehensive docs.
+
+## Key Architecture
+
+**User-Owned Agents (Hybrid Approach)**:
+
+- ONE service manages MULTIPLE user agent contexts
+- Each user gets NEAR sub-account: `{phone}.telcopay-agent.test.near`
+- Isolated contexts with per-user state
+- Per-user attestation (context-specific code hash)
+- Each user can verify THEIR agent's code
+- Future migration: Split contexts into separate TEE deployments
+
+**NEAR Account Hierarchy**:
+
+```
+telcopay-agent.test.near (Master agent account)
+├── 14255556001.telcopay-agent.test.near (Alice's agent)
+├── 14255556050.telcopay-agent.test.near (Bob's agent)
+└── 14255556056.telcopay-agent.test.near (Carol's agent)
+```
+
+**Migration Path**:
+
+- Phase 1: Single service with isolated contexts
+- Phase 2: Add distributed memory layer
+- Phase 3: Split into separate TEE deployments (one per user)
+- Same code, just different deployment topology
+
+## Success Criteria
+
+Phase 2 Complete when:
+
+- [ ] Each user gets own NEAR sub-account agent
+- [ ] UserAgentManager creates isolated contexts
+- [ ] Per-user attestations generate correctly
+- [ ] Signup creates both wallet and agent
+- [ ] Payments execute through user's own agent SDK
+- [ ] Demo viewer shows per-user agent info
+- [ ] Tests validate agent isolation between users
+- [ ] Documentation explains user ownership model
+
+### To-dos
+
+- [ ] Create near-simulators package directory structure
+- [ ] Implement 1Click API types matching production
+- [ ] Implement OneClickSimulator with requestQuote, getSwapStatus
+- [ ] Create ProductionOneClickClient stub
+- [ ] Implement config and factory for environment switching
+- [ ] Create test-intents-simulator.sh
+- [ ] Implement shade-agent-js SDK types (IShadeAgentSDK)
+- [ ] Implement ShadeAgentSDKSimulator with requestSignature, deriveAddress
+- [ ] Create ProductionShadeAgentSDK stub
+- [ ] Create ShadeAgentService wrapper (single service for all users)
+- [ ] Update factory with createShadeAgentSDK method
+- [ ] Update Lambda handler to use single ShadeAgent service
+- [ ] Add AGENT_EXECUTION event type
+- [ ] Update demo viewer for agent events
+- [ ] Create comprehensive test scripts for Shade Agent
+- [ ] Write package README and documentation
+- [ ] Create usage examples
+- [ ] Update TelcoPay documentation

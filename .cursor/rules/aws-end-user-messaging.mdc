@@ -1,0 +1,293 @@
+---
+alwaysApply: true
+description: AWS End User Messaging (SMS) service patterns - replaces deprecated Pinpoint
+---
+
+# AWS End User Messaging Service
+
+## Critical Context
+
+**AWS Pinpoint is being deprecated** for SMS/Voice functionality. The replacement is:
+- **Service Name**: AWS End User Messaging SMS and Voice
+- **CLI Namespace**: `pinpoint-sms-voice-v2` (⚠️ Still uses "pinpoint" in command names!)
+- **Console**: AWS End User Messaging (new dedicated console)
+- **Documentation**: https://docs.aws.amazon.com/sms-voice/
+
+## Key Nuance
+
+While the **service is called "AWS End User Messaging"**, the **CLI commands still have `pinpoint` in the name**:
+
+```bash
+# ✅ Correct CLI service name (has "pinpoint" in it!)
+aws pinpoint-sms-voice-v2 describe-phone-numbers
+
+# ❌ Old Pinpoint service (being deprecated)
+aws pinpoint send-messages
+
+# ✅ SNS for SMS (still separate service)
+aws sns publish --phone-number +1234567890
+```
+
+## TelcoPay Usage
+
+### Current Implementation
+TelcoPay uses:
+- **AWS Pinpoint** - For SMS gateway (Phase 1 demo mode)
+- **SNS Topic** - For routing inbound SMS to Lambda
+- **Simulator Numbers** - +14255556000 to +14255556049
+
+### Migration Path (Future)
+
+When migrating from Pinpoint to AWS End User Messaging:
+
+1. **Request Phone Number** (New API)
+   ```bash
+   aws pinpoint-sms-voice-v2 request-phone-number \
+     --iso-country-code US \
+     --message-type TRANSACTIONAL \
+     --number-capabilities SMS \
+     --number-type LONG_CODE \
+     --profile shai-sandbox-profile
+   ```
+
+2. **Enable Two-Way SMS**
+   ```bash
+   aws pinpoint-sms-voice-v2 update-phone-number \
+     --phone-number-id <phone-number-id> \
+     --two-way-enabled \
+     --two-way-channel-arn arn:aws:sns:us-east-1:311843862895:telco-pinpoint-sms \
+     --profile shai-sandbox-profile
+   ```
+
+3. **Describe Configuration**
+   ```bash
+   aws pinpoint-sms-voice-v2 describe-phone-numbers \
+     --phone-number-ids <phone-number-id> \
+     --profile shai-sandbox-profile
+   ```
+
+## CDK Migration Pattern
+
+### Current (Old Pinpoint SDK)
+```typescript
+import * as pinpoint from '@aws-sdk/client-pinpoint';
+
+const pinpointClient = new pinpoint.PinpointClient({
+  region: 'us-east-1'
+});
+```
+
+### Future (AWS End User Messaging SDK)
+```typescript
+import { 
+  PinpointSMSVoiceV2Client,
+  SendTextMessageCommand 
+} from '@aws-sdk/client-pinpoint-sms-voice-v2';
+
+const smsClient = new PinpointSMSVoiceV2Client({
+  region: 'us-east-1'
+});
+```
+
+## Important Distinctions
+
+### AWS End User Messaging vs Old Pinpoint
+
+| Feature | Old Pinpoint | AWS End User Messaging |
+|---------|-------------|------------------------|
+| Service Name | Amazon Pinpoint | AWS End User Messaging SMS and Voice |
+| CLI Namespace | `aws pinpoint` | `aws pinpoint-sms-voice-v2` |
+| SDK Package | `@aws-sdk/client-pinpoint` | `@aws-sdk/client-pinpoint-sms-voice-v2` |
+| Use Case | Campaigns, Analytics, SMS | SMS and Voice only |
+| Console | Pinpoint (legacy) | End User Messaging (new) |
+| Status | Being deprecated for SMS | Current/recommended |
+
+### What "Pinpoint" Means in Different Contexts
+
+**❌ Avoid saying**: "Use Pinpoint for SMS"
+**✅ Say instead**: "Use AWS End User Messaging (CLI: `pinpoint-sms-voice-v2`) for SMS"
+
+**When you see `pinpoint` in code/CLI**:
+- `aws pinpoint-sms-voice-v2` → ✅ AWS End User Messaging (correct, current)
+- `@aws-sdk/client-pinpoint-sms-voice-v2` → ✅ AWS End User Messaging SDK
+- `aws pinpoint send-messages` → ❌ Old Pinpoint (deprecated)
+- `PinpointClient` → ❌ Old Pinpoint (deprecated for SMS)
+
+## TelcoPay Simulator Numbers
+
+AWS End User Messaging provides simulator numbers for testing:
+
+**Number Type**: `SIMULATOR`
+**Range**: +14255556000 to +14255556049 (50 numbers)
+
+**Request simulator number**:
+```bash
+aws pinpoint-sms-voice-v2 request-phone-number \
+  --iso-country-code US \
+  --message-type TRANSACTIONAL \
+  --number-capabilities SMS \
+  --number-type SIMULATOR \
+  --profile shai-sandbox-profile
+```
+
+**Simulator Limitations**:
+- ✅ Free (no carrier charges)
+- ✅ Perfect for testing
+- ✅ Two-way SMS works
+- ❌ Actual SMS not delivered (logged only)
+- ❌ Cannot use for production
+
+## Sending SMS
+
+### Current Pattern (Phase 1)
+Uses old Pinpoint SDK with demo mode:
+
+```typescript
+// Demo mode - logs instead of sending
+if (process.env.DEMO_MODE === 'true') {
+  console.log('📱 [DEMO MODE] SMS Response:');
+  console.log(`To: ${recipient}`);
+  console.log(`Message: ${message}`);
+  return;
+}
+```
+
+### Future Pattern (Production)
+Use AWS End User Messaging SDK:
+
+```typescript
+import { 
+  PinpointSMSVoiceV2Client,
+  SendTextMessageCommand 
+} from '@aws-sdk/client-pinpoint-sms-voice-v2';
+
+const client = new PinpointSMSVoiceV2Client({ region: 'us-east-1' });
+
+async function sendSMS(toPhone: string, message: string, fromPhoneArn: string) {
+  const command = new SendTextMessageCommand({
+    DestinationPhoneNumber: toPhone,
+    OriginationIdentity: fromPhoneArn, // Use ARN for End User Messaging
+    MessageBody: message,
+    MessageType: 'TRANSACTIONAL'
+  });
+  
+  return await client.send(command);
+}
+```
+
+## Two-Way SMS Configuration
+
+### Inbound Message Routing
+
+AWS End User Messaging routes inbound SMS to SNS (same as old Pinpoint):
+
+```typescript
+// SNS topic receives inbound messages
+const smsTopic = new sns.Topic(this, 'InboundSMS', {
+  topicName: 'telco-inbound-sms'  // Can keep existing topic
+});
+
+// Configure phone number to route to SNS
+// Done via AWS CLI or Console:
+aws pinpoint-sms-voice-v2 update-phone-number \
+  --phone-number-id <id> \
+  --two-way-enabled \
+  --two-way-channel-arn <sns-topic-arn>
+```
+
+## Best Practices
+
+### 1. Use Correct Terminology
+- ✅ "AWS End User Messaging"
+- ✅ "SMS service" or "SMS gateway"
+- ❌ "Pinpoint" (unless specifically referencing CLI commands)
+
+### 2. Use v2 CLI Commands
+```bash
+# ✅ Correct (v2 API)
+aws pinpoint-sms-voice-v2 describe-phone-numbers
+
+# ❌ Deprecated (v1 API)
+aws pinpoint get-sms-channel
+```
+
+### 3. Handle Shared Resources
+When using shared AWS End User Messaging resources:
+```bash
+# ⚠️ Must use full ARN, not just ID
+--phone-number-id arn:aws:sms-voice:us-east-1:123456789012:phone-number/phone-abc123
+```
+
+### 4. Migration Checklist
+When migrating TelcoPay to AWS End User Messaging:
+- [ ] Update SDK: `@aws-sdk/client-pinpoint` → `@aws-sdk/client-pinpoint-sms-voice-v2`
+- [ ] Update CLI commands to `pinpoint-sms-voice-v2` namespace
+- [ ] Request numbers via new API
+- [ ] Configure two-way SMS with SNS topic ARN
+- [ ] Update IAM permissions for new service
+- [ ] Test with simulator numbers first
+- [ ] Update documentation references
+
+## Common Commands
+
+### Phone Number Management
+```bash
+# List phone numbers
+aws pinpoint-sms-voice-v2 describe-phone-numbers \
+  --profile shai-sandbox-profile
+
+# Request new number
+aws pinpoint-sms-voice-v2 request-phone-number \
+  --iso-country-code US \
+  --message-type TRANSACTIONAL \
+  --number-capabilities SMS \
+  --number-type LONG_CODE \
+  --profile shai-sandbox-profile
+
+# Enable two-way SMS
+aws pinpoint-sms-voice-v2 update-phone-number \
+  --phone-number-id <id> \
+  --two-way-enabled \
+  --two-way-channel-arn <sns-topic-arn> \
+  --profile shai-sandbox-profile
+
+# Send SMS
+aws pinpoint-sms-voice-v2 send-text-message \
+  --destination-phone-number +14255556001 \
+  --origination-identity <phone-arn> \
+  --message-body "Test message" \
+  --profile shai-sandbox-profile
+```
+
+### Configuration Pools
+```bash
+# List pools (for bulk SMS)
+aws pinpoint-sms-voice-v2 describe-pools \
+  --profile shai-sandbox-profile
+
+# Create configuration set
+aws pinpoint-sms-voice-v2 create-configuration-set \
+  --configuration-set-name telco-sms-config \
+  --profile shai-sandbox-profile
+```
+
+## Documentation References
+
+- **Service Guide**: https://docs.aws.amazon.com/sms-voice/latest/userguide/
+- **API Reference**: https://docs.aws.amazon.com/sms-voice/latest/APIReference/
+- **CLI Reference**: https://awscli.amazonaws.com/v2/documentation/api/latest/reference/pinpoint-sms-voice-v2/index.html
+
+## Summary
+
+**Remember**:
+- 📢 **Service name**: "AWS End User Messaging"
+- 💻 **CLI commands**: Still use `pinpoint-sms-voice-v2` namespace
+- 🔄 **Migration**: Straightforward SDK update
+- 📱 **Two-way SMS**: Routes to SNS topic (same as before)
+- 🎯 **For TelcoPay**: Continue using current Pinpoint for Phase 1, plan migration for Phase 2
+
+---
+
+**When someone mentions "Pinpoint"**: Clarify if they mean:
+1. AWS End User Messaging (new SMS service, CLI uses `pinpoint-sms-voice-v2`)
+2. Old Amazon Pinpoint (deprecated for SMS, campaigns/analytics)

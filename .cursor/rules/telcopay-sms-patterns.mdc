@@ -1,0 +1,411 @@
+---
+globs: lambdas/sms-handler/**/*.ts,lambdas/shared/**/*.ts,send-test-msg.sh,**/test*.sh
+description: TelcoPay SMS command patterns, parsing, and testing
+---
+
+# TelcoPay SMS Command Patterns
+
+Specific patterns for SMS command processing, parsing, and testing in TelcoPay.
+
+## Important: AWS End User Messaging
+
+**Service**: AWS End User Messaging SMS and Voice (replaces deprecated Pinpoint SMS)
+**CLI Namespace**: `pinpoint-sms-voice-v2` (⚠️ commands still have "pinpoint" in name)
+**File naming**: Some files still named `pinpoint-client.ts` (legacy naming, contains AWS End User Messaging code)
+
+See [aws-end-user-messaging](mdc:.cursor/rules/aws-end-user-messaging.mdc) rule for full details and migration patterns.
+
+## SMS Command Structure
+
+### Supported Commands
+
+| Command | Syntax | Example | Purpose |
+|---------|--------|---------|---------|
+| SIGNUP | `SIGNUP` | `SIGNUP` | Create custodial wallet |
+| P2P Pay | `PAY <amount> <+phone>` | `PAY 25 +14255556050` | Send to phone |
+| Merchant Pay | `PAY <amount> @<merchant>` | `PAY 50 @starbucks` | Send to merchant |
+| Help | `HELP` | `HELP` | Show available commands |
+
+### Command Parsing Pattern
+
+Location: [lambdas/sms-handler/index.ts](mdc:lambdas/sms-handler/index.ts)
+
+```typescript
+function parseCommand(body: string): Command {
+  const upper = body.trim().toUpperCase();
+  
+  // Simple commands
+  if (upper === 'SIGNUP') return { type: 'SIGNUP' };
+  if (upper === 'HELP') return { type: 'HELP' };
+  if (upper === 'BALANCE') return { type: 'BALANCE' };
+  
+  // Payment commands (P2P or Merchant)
+  const payMatch = upper.match(/PAY\s+(\d+)\s+(\+\d+|@\w+)/);
+  if (payMatch) {
+    return {
+      type: payMatch[2].startsWith('@') ? 'MERCHANT_PAY' : 'P2P_PAY',
+      amount: parseInt(payMatch[1]),
+      recipient: payMatch[2]
+    };
+  }
+  
+  return { type: 'UNKNOWN' };
+}
+```
+
+### SNS Message Format
+
+AWS End User Messaging sends inbound SMS to SNS in this format:
+
+```json
+{
+  "Records": [{
+    "Sns": {
+      "Message": "{
+        \"originationNumber\": \"+14255556001\",
+        \"messageBody\": \"SIGNUP\",
+        \"inboundMessageId\": \"test-12345\",
+        \"destinationNumber\": \"+14254147755\"
+      }"
+    }
+  }]
+}
+```
+
+**Extraction Pattern**:
+```typescript
+const snsMessage = JSON.parse(event.Records[0].Sns.Message);
+const { originationNumber, messageBody } = snsMessage;
+```
+
+## Handler Patterns
+
+### Signup Handler
+
+Location: [lambdas/sms-handler/handlers/signup.ts](mdc:lambdas/sms-handler/handlers/signup.ts)
+
+**Key Steps**:
+1. Check if user exists
+2. Generate wallet ID from phone number
+3. Create user record in DynamoDB
+4. Send SMS confirmation
+
+**Error Cases**:
+- User already exists → Send error with existing wallet ID
+- DynamoDB failure → Send generic error
+
+### P2P Payment Handler
+
+Location: [lambdas/sms-handler/handlers/p2p-payment.ts](mdc:lambdas/sms-handler/handlers/p2p-payment.ts)
+
+**Key Steps**:
+1. Validate amount > 0
+2. Get sender and recipient from DynamoDB
+3. Check sender exists and has sufficient balance
+4. Check recipient exists
+5. Update both balances atomically
+6. Create transaction record
+7. Send confirmation to both parties
+
+**Error Cases**:
+- Sender not registered → "Send SIGNUP first"
+- Recipient not registered → "Recipient does not have account"
+- Insufficient balance → "Insufficient balance. You have X USDC"
+- Invalid amount → "Amount must be positive"
+
+### Merchant Payment Handler
+
+Location: [lambdas/sms-handler/handlers/merchant-payment.ts](mdc:lambdas/sms-handler/handlers/merchant-payment.ts)
+
+**Key Steps**:
+1. Look up merchant by @name
+2. Validate sender and merchant exist
+3. Process payment similar to P2P
+4. Record transaction with merchant type
+
+## Demo Mode Pattern
+
+### Configuration
+Set in Lambda environment: `DEMO_MODE=true`
+
+### Implementation Pattern
+
+Location: [lambdas/shared/pinpoint-client.ts](mdc:lambdas/shared/pinpoint-client.ts)
+
+```typescript
+async function sendSMS(recipient: string, message: string): Promise<void> {
+  if (process.env.DEMO_MODE === 'true') {
+    // Log response instead of sending
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('📱 [DEMO MODE] SMS Response (would send in production):');
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log(`To: ${recipient}`);
+    console.log(`From: ${PINPOINT_SENDER_NUMBER}`);
+    console.log(`Message: ${message}`);
+    console.log(`MessageId: demo-${Date.now()}-${randomString()}`);
+    console.log('════════════════════════════════════════════════════════════════');
+    return;
+  }
+  
+  // Production: Actually send via Pinpoint
+  await pinpointClient.sendMessage({...});
+}
+```
+
+**Why Demo Mode**:
+- AWS Sandbox limitation: Can't send SMS to non-verified numbers
+- Simulator numbers don't receive actual SMS
+- Perfect for development and presentations
+- CloudWatch logs show all "sent" messages
+
+## Testing Patterns
+
+### Individual Testing
+
+Use: [send-test-msg.sh](mdc:send-test-msg.sh)
+
+```bash
+# Basic usage
+./send-test-msg.sh --command <COMMAND> --originator <PHONE>
+
+# Examples
+./send-test-msg.sh --command SIGNUP --originator +14255556001
+./send-test-msg.sh --command "PAY 25 +14255556050" --originator +14255556001
+```
+
+**What the script does**:
+1. Publishes message to SNS topic directly
+2. Lambda processes the message
+3. Checks DynamoDB for results
+4. Queries API Gateway for verification
+5. Shows formatted results
+
+### Batch Testing
+
+Use: [batch-signup-test.sh](mdc:batch-signup-test.sh)
+
+```bash
+./batch-signup-test.sh
+```
+
+Registers all 50 simulator numbers (+14255556000 to +14255556049).
+
+### Demo Viewer Testing
+
+```bash
+# Terminal 1: Start viewer
+./demo-viewer.sh
+
+# Terminal 2: Trigger events
+./send-test-msg.sh --command SIGNUP --originator +14255556020
+./send-test-msg.sh --command "PAY 10 +14255556021" --originator +14255556020
+```
+
+## Response Formatting Patterns
+
+### Success Responses
+
+**Signup**:
+```
+Welcome to TelcoPay! Your wallet {wallet_id} has been created and verified. 
+Balance: 100 USDC. Ready to send payments via SMS!
+```
+
+**P2P Payment (Sender)**:
+```
+Payment sent! {amount} USDC sent to {recipient}. 
+New balance available upon inquiry.
+```
+
+**P2P Payment (Recipient)**:
+```
+Payment received! {amount} USDC from {sender}. 
+New balance available upon inquiry.
+```
+
+**Merchant Payment**:
+```
+Payment sent! {amount} USDC sent to @{merchant}. 
+New balance available upon inquiry.
+```
+
+### Error Responses
+
+**Pattern**: Always include:
+1. Clear error message
+2. Valid command examples
+
+```
+Error processing your request: {specific_error}. 
+Valid commands: SIGNUP, PAY <amount> <phone>, PAY <amount> @<merchant>
+```
+
+**Specific Errors**:
+- "You do not have an account. Send SIGNUP first."
+- "Recipient {phone} does not have an account"
+- "Insufficient balance. You have {balance} USDC"
+- "Amount must be positive"
+- "You already have an account with wallet {wallet_id}"
+
+## Simulator Number Management
+
+### Range
+- **Start**: +14255556000
+- **End**: +14255556049
+- **Total**: 50 numbers
+- **Free**: No carrier charges
+
+### Pre-registered Numbers
+
+Use these for immediate testing (already have wallets):
+```
++14255556001 - Alice   (100 USDC)
++14255556050 - Bob     (100 USDC)
++14255556056 - Carol   (100 USDC)
+```
+
+### Testing Strategy
+
+**Scenario 1: New User Flow**
+```bash
+# Use an unused number (6002-6049)
+./send-test-msg.sh --command SIGNUP --originator +14255556030
+```
+
+**Scenario 2: Payment Between Registered Users**
+```bash
+./send-test-msg.sh --command "PAY 25 +14255556050" --originator +14255556001
+```
+
+**Scenario 3: Error - Payment to Non-existent User**
+```bash
+./send-test-msg.sh --command "PAY 10 +14255559999" --originator +14255556001
+```
+
+**Scenario 4: Error - Insufficient Balance**
+```bash
+# First drain balance
+./send-test-msg.sh --command "PAY 100 +14255556050" --originator +14255556001
+# Then try another payment (should fail)
+./send-test-msg.sh --command "PAY 10 +14255556050" --originator +14255556001
+```
+
+## CloudWatch Log Patterns
+
+### Key Log Messages to Look For
+
+**Signup Events**:
+```
+User registered: {phone} -> {wallet_id}
+```
+
+**Payment Events**:
+```
+P2P payment completed: {from_phone} -> {to_phone}, Amount: {amount}
+Merchant payment completed: {from_phone} -> @{merchant}, Amount: {amount}
+```
+
+**Error Events**:
+```
+Message: Error processing your request: {error_details}
+```
+
+### Log Analysis Commands
+
+```bash
+# Tail logs in real-time
+aws logs tail /aws/lambda/telco-sms-handler --follow \
+  --profile shai-sandbox-profile --region us-east-1
+
+# Search for signups
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/telco-sms-handler \
+  --filter-pattern "User registered" \
+  --profile shai-sandbox-profile
+
+# Search for payments
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/telco-sms-handler \
+  --filter-pattern "payment completed" \
+  --profile shai-sandbox-profile
+
+# Search for errors
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/telco-sms-handler \
+  --filter-pattern "Error" \
+  --profile shai-sandbox-profile --region us-east-1
+```
+
+## Common Development Tasks
+
+### Adding a New SMS Command
+
+1. **Update parser** in [lambdas/sms-handler/index.ts](mdc:lambdas/sms-handler/index.ts)
+2. **Create handler** in `lambdas/sms-handler/handlers/`
+3. **Add routing** in main index.ts
+4. **Add response** in shared/pinpoint-client.ts
+5. **Test** with send-test-msg.sh
+
+### Adding a New API Endpoint
+
+1. **Update handler** in [lambdas/wallet-service/index.ts](mdc:lambdas/wallet-service/index.ts)
+2. **Update CDK** to add route in [cdk/lib/telco-sms-stack.ts](mdc:cdk/lib/telco-sms-stack.ts)
+3. **Deploy** with `npm run deploy`
+4. **Test** with curl
+
+### Updating DynamoDB Schema
+
+1. **Update types** in [lambdas/shared/types.ts](mdc:lambdas/shared/types.ts)
+2. **Update CDK** table definition if needed
+3. **Update clients** in dynamodb-client.ts
+4. **Deploy** and test
+
+## Best Practices
+
+### Error Handling
+- Always send user-friendly error messages
+- Include valid command examples in errors
+- Log technical details to CloudWatch
+- Never expose internal errors to users
+
+### Balance Management
+- Use atomic DynamoDB updates for balance changes
+- Verify sender balance before transaction
+- Create transaction record before updating balances
+- Roll back on failure (or use DynamoDB transactions)
+
+### Testing
+- Test all error paths, not just happy paths
+- Use simulator numbers (free, unlimited)
+- Verify in both CloudWatch logs and API
+- Watch with demo viewer for real-time feedback
+
+### Demo Mode
+- Always log demo responses with clear markers
+- Use consistent formatting for easy parsing
+- Include all relevant data (from, to, message, etc.)
+- Make it easy to see what "would have been sent"
+
+## Troubleshooting
+
+### "User not found after signup"
+- Check CloudWatch logs for actual error
+- Verify DynamoDB table exists
+- Check IAM permissions for Lambda
+- Look for DynamoDB write errors
+
+### "Payment appears successful but balances don't change"
+- Check transaction record in telco-transactions table
+- Verify atomic update completed
+- Check for DynamoDB consistency issues
+- Query API again (eventual consistency)
+
+### "Demo viewer not showing events"
+- Verify CloudWatch log group name
+- Check AWS credentials (shai-sandbox-profile)
+- Confirm Lambda is actually running
+- Try manual log tail to verify events exist
+
+---
+
+**Use this rule when**: Working with SMS commands, handlers, testing, or demo mode functionality.

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="description" content="A groundbreaking journey through AI consciousness and blockchain identity. Engage with autonomous agents and claim your sovereign digital soul." />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" href="/vite.svg" />
+    <title>Hall of Echoes - An AI & Blockchain Identity Experience</title>
+    <!-- Add Google Fonts here, example:
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    -->
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <!-- Suppress browser extension errors for demo -->
+    <script>
+      (function() {
+        const originalError = console.error;
+        console.error = function(...args) {
+          const errorString = args.join(' ');
+          // Filter out chrome extension errors
+          if (errorString.includes('chrome-extension://') || 
+              errorString.includes('Failed to get initial state')) {
+            return;
+          }
+          originalError.apply(console, args);
+        };
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+
+</html>
