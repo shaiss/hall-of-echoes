@@ -33,6 +33,14 @@ export default function Conversation() {
 
   const Icon = agent ? iconMap[agent.icon] : Brain;
 
+  // Reset state when agentId changes (navigating to a new agent)
+  useEffect(() => {
+    setCurrentExchange(0);
+    setSelectedOption(null);
+    setShowResponse(false);
+    setIsTyping(false);
+  }, [agentId]);
+
   useEffect(() => {
     if (!agent || !visitorProfile) {
       setLocation("/");
@@ -147,14 +155,19 @@ export default function Conversation() {
             </motion.div>
 
             {/* Visitor options */}
-            {!showResponse && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-3"
-              >
-                {exchange.visitorOptions.map((option, index) => (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-3"
+            >
+              {exchange.visitorOptions.map((option, index) => {
+                // Show all options before selection, or only the selected option after selection
+                const shouldShow = !showResponse || selectedOption === index;
+                
+                if (!shouldShow) return null;
+                
+                return (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: 20 }}
@@ -174,9 +187,9 @@ export default function Conversation() {
                       {option}
                     </Button>
                   </motion.div>
-                ))}
-              </motion.div>
-            )}
+                );
+              })}
+            </motion.div>
 
             {/* Typing indicator */}
             <AnimatePresence>

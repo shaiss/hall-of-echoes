@@ -125,10 +125,15 @@ export default function Registration() {
   }, [step]);
 
   // Wallet creation simulation
+  // TODO: Replace with LLM-generated wallet name based on metadata/personality/SBT
   useEffect(() => {
     if (step === "wallet" && isProcessing) {
       setTimeout(() => {
-        const address = `${name.toLowerCase().replace(/\s+/g, "-")}.near`;
+        // Generate temporary wallet address - will be replaced with LLM-generated name later
+        // Using timestamp + random string for uniqueness
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).substring(2, 8);
+        const address = `echo-${timestamp}-${random}.near`;
         setWalletAddress(address);
         
         const profile = {
@@ -228,8 +233,17 @@ export default function Registration() {
                   className={`absolute inset-0 w-full h-full object-cover ${cameraError ? 'hidden' : ''}`}
                 />
                 
-                {/* Fallback icon when no camera */}
-                {cameraError && (
+                {/* Generated avatar when camera is not available */}
+                {cameraError && capturedImage && (
+                  <img
+                    src={capturedImage}
+                    alt="Generated avatar"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+                
+                {/* Fallback icon when no camera and no avatar yet */}
+                {cameraError && !capturedImage && (
                   <div className="flex flex-col items-center gap-2">
                     <Camera className="w-24 h-24 text-muted-foreground" />
                     <AlertCircle className="w-6 h-6 text-yellow-500" />
