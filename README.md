@@ -12,7 +12,7 @@
 
 Hall of Echoes is an immersive art installation experience that combines AI-powered conversations with blockchain technology to create unique, non-transferable Soulbound Tokens (SBTs) on the NEAR Protocol. Each journey through the Hall creates a permanent, verifiable record of your digital identity exploration.
 
-![Hall of Echoes Demo](docs/screenshots/hall-of-echoes-demo.gif?v=2)
+![Hall of Echoes Demo](docs/screenshots/hall-of-echoes-demo-v2.gif)
 
 ## 🌟 Features
 
