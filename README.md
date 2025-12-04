@@ -1,5 +1,13 @@
 # Hall of Echoes
 
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![NEAR Protocol](https://img.shields.io/badge/NEAR-Protocol-000000?logo=near&logoColor=white)](https://near.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/shaiss/hall-of-echoes?style=social)](https://github.com/shaiss/hall-of-echoes/stargazers)
+
+
 > A groundbreaking interactive journey through AI consciousness and blockchain identity. Engage with autonomous agents, explore the depths of conversation, and claim your sovereign digital soul.
 
 Hall of Echoes is an immersive art installation experience that combines AI-powered conversations with blockchain technology to create unique, non-transferable Soulbound Tokens (SBTs) on the NEAR Protocol. Each journey through the Hall creates a permanent, verifiable record of your digital identity exploration.
