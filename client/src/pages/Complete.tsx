@@ -4,14 +4,18 @@ import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { useExperience } from "@/contexts/ExperienceContext";
-import { ExternalLink, Download, Share2, RotateCcw } from "lucide-react";
+import { ExternalLink, Download, Share2, RotateCcw, MessageSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { useArtwork } from "@/lib/artworkGenerator";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function Complete() {
   const [, setLocation] = useLocation();
-  const { soulboundToken, visitorProfile, resetExperience, conversations } = useExperience();
+  const { soulboundToken, visitorProfile, resetExperience, conversations, synthesisData } = useExperience();
   
   // Generate dynamic artwork based on token themes
   const themes = soulboundToken?.metadata.themes || [];
@@ -20,7 +24,15 @@ export default function Complete() {
 
   useEffect(() => {
     if (!soulboundToken || !visitorProfile) {
-      setLocation("/");
+      // Allow viewing if we have data in localStorage even if not in context yet (handled by provider)
+      // But if provider is initialized and still null, then redirect
+      // For now, reliance on the provider's initial state from localStorage is sufficient
+      // if it's still null after a moment, we might redirect, but let's assume if it's null it's really empty.
+      // However, since we just added persistence, we might need to check if we are just reloading.
+      // The context initializes from localStorage synchronously, so this check is fine.
+       if (!localStorage.getItem('soulboundToken')) {
+          setLocation("/");
+       }
     }
   }, [soulboundToken, visitorProfile, setLocation]);
 
@@ -35,7 +47,7 @@ export default function Complete() {
   };
 
   const handleViewOnChain = () => {
-    toast.success("Would open NEAR blockchain explorer");
+    window.open(`https://explorer.testnet.near.org/transactions/${soulboundToken.transactionHash}`, '_blank');
   };
 
   const handleReset = () => {
@@ -55,174 +67,209 @@ export default function Complete() {
           <h1 className="text-5xl font-bold text-foreground">Your Digital Soul Awaits</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Congratulations, {visitorProfile.name}! Your Soulbound Token has been successfully
-            minted and is now permanently part of your digital identity.
+            minted. The Hall of Echoes has listened, and this is your story echoed back.
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-8">
-          {/* NFT Display */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-card border-border p-6 space-y-6">
-              <motion.div
-                className="aspect-square rounded-lg relative overflow-hidden bg-muted"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-              >
-                {artworkUrl ? (
-                  <img
-                    src={artworkUrl}
-                    alt={soulboundToken.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-chart-1 via-chart-2 to-chart-3">
-                    <div className="w-48 h-48 border-4 border-white/30 rounded-full animate-spin" />
-                  </div>
-                )}
-              </motion.div>
-
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-card-foreground">{soulboundToken.title}</h3>
-                <p className="text-sm text-muted-foreground">{soulboundToken.description}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleShare} className="flex-1">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleDownload} className="flex-1">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* Metadata */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="space-y-6"
-          >
-            <Card className="bg-card border-border p-6">
-              <h3 className="text-xl font-semibold text-card-foreground mb-4">Token Details</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Token ID</span>
-                  <span className="text-card-foreground font-mono">{soulboundToken.tokenId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Wallet</span>
-                  <span className="text-card-foreground font-mono">{visitorProfile.walletAddress}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Network</span>
-                  <span className="text-card-foreground">NEAR Protocol</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="text-accent font-medium">Soulbound (Non-transferable)</span>
-                </div>
-                <div className="pt-4 border-t border-border">
-                  <p className="text-muted-foreground text-xs mb-3 text-center">Wallet QR Code</p>
-                  <div className="flex justify-center p-4 bg-white rounded-lg">
-                    <QRCodeSVG
-                      value={visitorProfile.walletAddress}
-                      size={160}
-                      level="H"
-                      includeMargin={true}
-                      fgColor="#000000"
-                      bgColor="#ffffff"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Scan to view wallet address
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-card border-border p-6">
-              <h3 className="text-xl font-semibold text-card-foreground mb-4">Experience Metadata</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground block mb-2">Agents Engaged</span>
-                  <div className="flex flex-wrap gap-2">
-                    {soulboundToken.metadata.agentsEngaged.map((agent) => (
-                      <span
-                        key={agent}
-                        className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-xs"
-                      >
-                        {agent}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block mb-2">Key Themes</span>
-                  <div className="flex flex-wrap gap-2">
-                    {soulboundToken.metadata.themes.map((theme, index) => (
-                      <span
-                        key={theme}
-                        className="px-3 py-1 rounded-full text-xs"
-                        style={{
-                          backgroundColor: `oklch(0.65 0.25 ${280 + index * 40})20`,
-                          color: `oklch(0.65 0.25 ${280 + index * 40})`,
-                          border: `1px solid oklch(0.65 0.25 ${280 + index * 40})`,
-                        }}
-                      >
-                        {theme}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="text-card-foreground">{soulboundToken.metadata.duration} minutes</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Timestamp</span>
-                  <span className="text-card-foreground">
-                    {new Date(soulboundToken.metadata.timestamp).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-card border-border p-6">
-              <h3 className="text-xl font-semibold text-card-foreground mb-4">Blockchain Data</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground block mb-1">IPFS Hash</span>
-                  <code className="text-xs text-card-foreground bg-muted p-2 rounded block break-all">
-                    {soulboundToken.ipfsHash}
-                  </code>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block mb-1">Transaction Hash</span>
-                  <code className="text-xs text-card-foreground bg-muted p-2 rounded block break-all">
-                    {soulboundToken.transactionHash}
-                  </code>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewOnChain}
-                  className="w-full mt-2"
+          {/* Left Column: NFT & Interpretation */}
+          <div className="space-y-8">
+            {/* NFT Display */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="bg-card border-border p-6 space-y-6">
+                <motion.div
+                  className="aspect-square rounded-lg relative overflow-hidden bg-muted"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
                 >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View on NEAR Explorer
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
+                  {artworkUrl ? (
+                    <img
+                      src={artworkUrl}
+                      alt={soulboundToken.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-chart-1 via-chart-2 to-chart-3">
+                      <div className="w-48 h-48 border-4 border-white/30 rounded-full animate-spin" />
+                    </div>
+                  )}
+                </motion.div>
+
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-card-foreground">{soulboundToken.title}</h3>
+                  <p className="text-sm text-muted-foreground">{soulboundToken.description}</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleShare} className="flex-1">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownload} className="flex-1">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+
+             {/* Interpretation / Synthesis */}
+            {synthesisData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Card className="bg-card border-border p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-accent" />
+                    <h3 className="text-xl font-semibold text-card-foreground">Soul Synthesis</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2">The Oracle's Interpretation</h4>
+                      <p className="text-sm italic text-foreground/90 leading-relaxed border-l-2 border-accent pl-4 py-1">
+                        "{synthesisData.conversationSummary}"
+                      </p>
+                    </div>
+
+                    {synthesisData.insights && synthesisData.insights.length > 0 && (
+                       <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2">Key Insights</h4>
+                        <ul className="space-y-2">
+                          {synthesisData.insights.map((insight, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-accent mt-1">•</span>
+                              <span>{insight}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Right Column: Echoes & Details */}
+          <div className="space-y-6">
+             {/* Conversation History */}
+             <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Card className="bg-card border-border p-6 flex flex-col">
+                <div className="flex items-center gap-2 mb-4 shrink-0">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  <h3 className="text-xl font-semibold text-card-foreground">Echoes of Conversation</h3>
+                </div>
+                
+                <Accordion type="single" collapsible className="w-full">
+                  {conversations.map((conv, idx) => (
+                    <AccordionItem key={idx} value={`item-${idx}`}>
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">{conv.agentName}</Badge>
+                          <span className="text-xs text-muted-foreground">Agent</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="pl-2 border-l border-border space-y-4 py-2">
+                          {conv.exchanges.map((exchange, exIdx) => (
+                            <div key={exIdx} className="space-y-1">
+                              <p className="text-sm text-muted-foreground italic">"{exchange.agent}"</p>
+                              <p className="text-sm font-medium text-foreground">You: "{exchange.visitor}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </Card>
+            </motion.div>
+
+            {/* Metadata */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+              className="space-y-6"
+            >
+              <Card className="bg-card border-border p-6">
+                <h3 className="text-xl font-semibold text-card-foreground mb-4">Token Details</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Token ID</span>
+                    <span className="text-card-foreground font-mono">{soulboundToken.tokenId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Wallet</span>
+                    <span className="text-card-foreground font-mono">{visitorProfile.walletAddress}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Network</span>
+                    <span className="text-card-foreground">NEAR Protocol</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="text-accent font-medium">Soulbound (Non-transferable)</span>
+                  </div>
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-muted-foreground text-xs mb-3 text-center">Wallet QR Code</p>
+                    <div className="flex justify-center p-4 bg-white rounded-lg">
+                      <QRCodeSVG
+                        value={visitorProfile.walletAddress}
+                        size={160}
+                        level="H"
+                        includeMargin={true}
+                        fgColor="#000000"
+                        bgColor="#ffffff"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Scan to view wallet address
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-card border-border p-6">
+                <h3 className="text-xl font-semibold text-card-foreground mb-4">Blockchain Data</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground block mb-1">IPFS Hash</span>
+                    <code className="text-xs text-card-foreground bg-muted p-2 rounded block break-all">
+                      {soulboundToken.ipfsHash}
+                    </code>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-1">Transaction Hash</span>
+                    <code className="text-xs text-card-foreground bg-muted p-2 rounded block break-all">
+                      {soulboundToken.transactionHash}
+                    </code>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewOnChain}
+                    className="w-full mt-2"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View on NEAR Explorer
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -230,31 +277,8 @@ export default function Complete() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="text-center space-y-6"
+          className="text-center space-y-6 pt-8"
         >
-          <Card className="bg-card border-border p-6">
-            <h3 className="text-xl font-semibold text-card-foreground mb-2">What Makes This Special?</h3>
-            <p className="text-muted-foreground mb-4">
-              This Soulbound Token is permanently tied to your wallet and cannot be transferred or sold.
-              It represents your authentic participation in the Hall of Echoes experience and serves as
-              a verifiable credential of your digital identity journey.
-            </p>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
-              <div className="p-4 bg-secondary rounded-lg">
-                <p className="font-semibold text-secondary-foreground mb-1">Non-Transferable</p>
-                <p className="text-muted-foreground">Cannot be sold or given away</p>
-              </div>
-              <div className="p-4 bg-secondary rounded-lg">
-                <p className="font-semibold text-secondary-foreground mb-1">Verifiable</p>
-                <p className="text-muted-foreground">Immutable proof on blockchain</p>
-              </div>
-              <div className="p-4 bg-secondary rounded-lg">
-                <p className="font-semibold text-secondary-foreground mb-1">Unique</p>
-                <p className="text-muted-foreground">One-of-a-kind digital artifact</p>
-              </div>
-            </div>
-          </Card>
-
           <Button
             size="lg"
             variant="outline"
@@ -262,7 +286,7 @@ export default function Complete() {
             className="text-lg px-8"
           >
             <RotateCcw className="w-5 h-5 mr-2" />
-            Experience Again
+            Start New Journey
           </Button>
 
           <p className="text-sm text-muted-foreground">

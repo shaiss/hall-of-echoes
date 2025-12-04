@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 export interface VisitorProfile {
   name: string;
@@ -58,11 +58,64 @@ interface ExperienceContextType {
 const ExperienceContext = createContext<ExperienceContextType | undefined>(undefined);
 
 export function ExperienceProvider({ children }: { children: ReactNode }) {
-  const [visitorProfile, setVisitorProfile] = useState<VisitorProfile | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [synthesisData, setSynthesisData] = useState<SynthesisData | null>(null);
-  const [soulboundToken, setSoulboundToken] = useState<SoulboundToken | null>(null);
-  const [currentPhase, setCurrentPhase] = useState(0);
+  // Initialize state from localStorage if available
+  const [visitorProfile, setVisitorProfile] = useState<VisitorProfile | null>(() => {
+    const saved = localStorage.getItem('visitorProfile');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const saved = localStorage.getItem('conversations');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [synthesisData, setSynthesisData] = useState<SynthesisData | null>(() => {
+    const saved = localStorage.getItem('synthesisData');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  const [soulboundToken, setSoulboundToken] = useState<SoulboundToken | null>(() => {
+    const saved = localStorage.getItem('soulboundToken');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  const [currentPhase, setCurrentPhase] = useState(() => {
+    const saved = localStorage.getItem('currentPhase');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Persist state changes to localStorage
+  useEffect(() => {
+    if (visitorProfile) {
+      localStorage.setItem('visitorProfile', JSON.stringify(visitorProfile));
+    } else {
+      localStorage.removeItem('visitorProfile');
+    }
+  }, [visitorProfile]);
+
+  useEffect(() => {
+    localStorage.setItem('conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  useEffect(() => {
+    if (synthesisData) {
+      localStorage.setItem('synthesisData', JSON.stringify(synthesisData));
+    } else {
+      localStorage.removeItem('synthesisData');
+    }
+  }, [synthesisData]);
+
+  useEffect(() => {
+    if (soulboundToken) {
+      localStorage.setItem('soulboundToken', JSON.stringify(soulboundToken));
+    } else {
+      localStorage.removeItem('soulboundToken');
+    }
+  }, [soulboundToken]);
+
+  useEffect(() => {
+    localStorage.setItem('currentPhase', currentPhase.toString());
+  }, [currentPhase]);
 
   const addConversation = (conversation: Conversation) => {
     setConversations(prev => [...prev, conversation]);
@@ -74,6 +127,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     setSynthesisData(null);
     setSoulboundToken(null);
     setCurrentPhase(0);
+    localStorage.clear();
   };
 
   return (

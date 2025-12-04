@@ -10,7 +10,9 @@ import { Camera, Wallet, Loader2, AlertCircle } from "lucide-react";
 // Helper function to generate a random avatar using DiceBear
 function generateRandomAvatar(seed: string): string {
   const style = 'avataaars'; // Fun avatar style
-  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
+  // Use current timestamp to ensure uniqueness even for same name
+  const uniqueSeed = `${seed}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
 }
 
 export default function Registration() {
